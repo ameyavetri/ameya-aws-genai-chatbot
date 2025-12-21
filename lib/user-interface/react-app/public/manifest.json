@@ -1,8 +1,8 @@
 {
   "id": "/",
   "start_url": "/",
-  "name": "GenAI Chatbot on AWS",
-  "short_name": "GenAI Chatbot",
+  "name": "Ameya Data Solution AI Chatbot",
+  "short_name": "Ameya AI Chatbot",
   "description": "AWS Multi LLM ChatBot Sample",
   "theme_color": "#000000",
   "background_color": "#ffffff",

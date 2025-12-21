@@ -10,13 +10,19 @@ import {
   SupportedSageMakerModels,
   SystemConfig,
 } from "../shared/types";
-import {
-  HuggingFaceSageMakerEndpoint,
-  JumpStartSageMakerEndpoint,
-  SageMakerInstanceType,
-  DeepLearningContainerImage,
-  JumpStartModel,
-} from "@cdklabs/generative-ai-cdk-constructs";
+
+// ============================================================================
+// SAGEMAKER IMPORTS - Uncomment when ready to use SageMaker models
+// ============================================================================
+// import {
+//   HuggingFaceSageMakerEndpoint,
+//   JumpStartSageMakerEndpoint,
+//   SageMakerInstanceType,
+//   DeepLearningContainerImage,
+//   JumpStartModel,
+// } from "@cdklabs/generative-ai-cdk-constructs";
+// ============================================================================
+
 import { NagSuppressions } from "cdk-nag";
 import { createStartSchedule, createStopSchedule } from "./sagemaker-schedule";
 
@@ -34,6 +40,12 @@ export class Models extends Construct {
 
     const models: SageMakerModelEndpoint[] = [];
 
+    // ========================================================================
+    // SAGEMAKER MODELS - All models commented out for Bedrock-only deployment
+    // TO ENABLE: Uncomment the sections below and update config.json
+    // ========================================================================
+
+    /*
     let hfTokenSecret: secretsmanager.Secret | undefined;
     if (props.config.llms.huggingfaceApiSecretArn) {
       hfTokenSecret = secretsmanager.Secret.fromSecretCompleteArn(
@@ -42,6 +54,10 @@ export class Models extends Construct {
         props.config.llms.huggingfaceApiSecretArn
       ) as secretsmanager.Secret;
     }
+
+    // ------------------------------------------------------------------------
+    // FALCON LITE MODEL (~$8/hour)
+    // ------------------------------------------------------------------------
     if (
       props.config.llms?.sagemaker.includes(SupportedSageMakerModels.FalconLite)
     ) {
@@ -91,6 +107,9 @@ export class Models extends Construct {
       });
     }
 
+    // ------------------------------------------------------------------------
+    // MISTRAL 7B INSTRUCT (~$1.5/hour)
+    // ------------------------------------------------------------------------
     if (
       props.config.llms?.sagemaker.includes(
         SupportedSageMakerModels.Mistral7b_Instruct
@@ -141,6 +160,9 @@ export class Models extends Construct {
       });
     }
 
+    // ------------------------------------------------------------------------
+    // MISTRAL 7B INSTRUCT V2 (~$1.5/hour)
+    // ------------------------------------------------------------------------
     if (
       props.config.llms?.sagemaker.includes(
         SupportedSageMakerModels.Mistral7b_Instruct2
@@ -191,6 +213,9 @@ export class Models extends Construct {
       });
     }
 
+    // ------------------------------------------------------------------------
+    // MIXTRAL 8x7B INSTRUCT (~$25/hour)
+    // ------------------------------------------------------------------------
     if (
       props.config.llms?.sagemaker.includes(
         SupportedSageMakerModels.Mixtral_8x7b_Instruct
@@ -245,6 +270,9 @@ export class Models extends Construct {
       });
     }
 
+    // ------------------------------------------------------------------------
+    // MISTRAL 7B INSTRUCT V3 (~$1.5/hour)
+    // ------------------------------------------------------------------------
     if (
       props.config.llms?.sagemaker.includes(
         SupportedSageMakerModels.Mistral7b_Instruct3
@@ -281,6 +309,9 @@ export class Models extends Construct {
       });
     }
 
+    // ------------------------------------------------------------------------
+    // LLAMA 2 13B CHAT (~$8/hour)
+    // ------------------------------------------------------------------------
     if (
       props.config.llms?.sagemaker.includes(
         SupportedSageMakerModels.Llama2_13b_Chat
@@ -317,6 +348,9 @@ export class Models extends Construct {
       });
     }
 
+    // ------------------------------------------------------------------------
+    // IDEFICS 9B - Multimodal (~$8/hour)
+    // ------------------------------------------------------------------------
     if (
       props.config.llms?.sagemaker.includes(SupportedSageMakerModels.Idefics_9b)
     ) {
@@ -360,6 +394,9 @@ export class Models extends Construct {
       });
     }
 
+    // ------------------------------------------------------------------------
+    // IDEFICS 80B - Multimodal (~$25/hour)
+    // ------------------------------------------------------------------------
     if (
       props.config.llms?.sagemaker.includes(
         SupportedSageMakerModels.Idefics_80b
@@ -389,8 +426,6 @@ export class Models extends Construct {
           MAX_INPUT_LENGTH: JSON.stringify(1024),
           MAX_TOTAL_TOKENS: JSON.stringify(2048),
           MAX_BATCH_TOTAL_TOKENS: JSON.stringify(8192),
-          // quantization required to work with ml.g5.48xlarge
-          // comment if deploying with ml.p4d or ml.p4e instances
           HF_MODEL_QUANTIZE: "bitsandbytes",
         },
       });
@@ -407,6 +442,11 @@ export class Models extends Construct {
         ragSupported: false,
       });
     }
+    */
+
+    // ========================================================================
+    // END OF SAGEMAKER MODELS
+    // ========================================================================
 
     const modelsParameter = new ssm.StringParameter(this, "ModelsParameter", {
       stringValue: JSON.stringify(
