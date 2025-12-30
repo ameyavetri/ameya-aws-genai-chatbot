@@ -1,0 +1,12 @@
+{
+  "GenAIChatBotStack": {
+    "ChatBotApiGraphQLApiIdD57A1352": "m4wtzhgbxranxcyerlb5hrpzma",
+    "SharedApiKeysSecretName3D265ECA": "SharedApiKeysSecret9EA666ED-Rp6cjMQMvT6E",
+    "metadata": "{\"ChatbotUserInterfaceDomainName\":\"https://d112u9vl12a2h5.cloudfront.net\",\"ChatbotUserPoolId\":\"us-east-1_7Hj5OgnHv\",\"ChatbotUserPoolClientId\":\"52groli4tmsn8oj5u8eifs10k9\",\"ChatbotUserPoolLink\":\"https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_7Hj5OgnHv/users?region=us-east-1\",\"ChatbotGraphqlApiUrl\":\"https://sqpcitxojfgrlhhsjz4qeehbfi.appsync-api.us-east-1.amazonaws.com/graphql\",\"ChatbotGraphQLApiId\":\"m4wtzhgbxranxcyerlb5hrpzma\",\"ChatbotApiKeysSecretName\":\"SharedApiKeysSecret9EA666ED-Rp6cjMQMvT6E\",\"ChatbotLoadBalancerDNS\":\"\",\"ChatbotDomain\":\"d112u9vl12a2h5.cloudfront.net\",\"ChatbotCompositeAlarmTopicOutput\":\"\"}",
+    "ChatBotApiGraphQLApiUrl60848283": "https://sqpcitxojfgrlhhsjz4qeehbfi.appsync-api.us-east-1.amazonaws.com/graphql",
+    "AuthenticationUserPoolWebClientId80D5526A": "52groli4tmsn8oj5u8eifs10k9",
+    "UserInterfacePublicWebsiteUserInterfaceDomainName0AFFF237": "https://d112u9vl12a2h5.cloudfront.net",
+    "AuthenticationUserPoolLink55CE7EC4": "https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_7Hj5OgnHv/users?region=us-east-1",
+    "AuthenticationUserPoolIdF0D106F7": "us-east-1_7Hj5OgnHv"
+  }
+}

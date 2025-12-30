@@ -7,3 +7,4 @@ from .bedrock_agent import *
 from .base import Mode
 from .shared import *
 from .nexus import *
+from .import openai

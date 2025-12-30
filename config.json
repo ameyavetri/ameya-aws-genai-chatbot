@@ -1,0 +1,31 @@
+﻿{
+  "prefix": "chatbot",
+  "bedrock": {
+    "enabled": true,
+    "region": "us-east-1",
+    "roleArn": ""
+  },
+  "llms": {
+    "sagemaker": []
+  },
+  "rag": {
+    "enabled": true,
+    "engines": {
+      "aurora": {
+        "enabled": false
+      },
+      "opensearch": {
+        "enabled": true
+      },
+      "kendra": {
+        "enabled": false
+      }
+    }
+  },
+  "vpc": {
+    "createVpc": false
+  },
+  "privateWebsite": false,
+  "certificate": "",
+  "domain": ""
+}
