@@ -8,3 +8,16 @@ GenAIChatBotStack.UserInterfacePublicWebsiteUserInterfaceDomainName0AFFF237 = ht
 GenAIChatBotStack.metadata = {"ChatbotUserInterfaceDomainName":"https://da8vgl7pfic1s.cloudfront.net","ChatbotUserPoolId":"us-east-1_ElLalTp4K","ChatbotUserPoolClientId":"5mehm5av5dvtbh64gbq2m0e34r","ChatbotUserPoolLink":"https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_ElLalTp4K/users?region=us-east-1","ChatbotGraphqlApiUrl":"https://3gpkuet3jjh5zdncvgkuvgqt7m.appsync-api.us-east-1.amazonaws.com/graphql","ChatbotGraphQLApiId":"mfa7fiwayzd4zoimnalvcnz33u","ChatbotApiKeysSecretName":"SharedApiKeysSecret9EA666ED-U7mo8QsThwnT","ChatbotLoadBalancerDNS":"","ChatbotDomain":"da8vgl7pfic1s.cloudfront.net","ChatbotCompositeAlarmTopicOutput":""}
 Stack ARN:
 arn:aws:cloudformation:us-east-1:013121026899:stack/GenAIChatBotStack/4e7452c0-d92c-11f0-9f59-0affe81523fd
+
+-----------------------------------------------------------------------------------------
+New
+GenAIChatBotStack.AuthenticationUserPoolIdF0D106F7 = us-east-1_ElLalTp4K
+GenAIChatBotStack.AuthenticationUserPoolLink55CE7EC4 = https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_ElLalTp4K/users?region=us-east-1
+GenAIChatBotStack.AuthenticationUserPoolWebClientId80D5526A = 5mehm5av5dvtbh64gbq2m0e34r
+GenAIChatBotStack.ChatBotApiGraphQLApiIdD57A1352 = mfa7fiwayzd4zoimnalvcnz33u
+GenAIChatBotStack.ChatBotApiGraphQLApiUrl60848283 = https://3gpkuet3jjh5zdncvgkuvgqt7m.appsync-api.us-east-1.amazonaws.com/graphql
+GenAIChatBotStack.SharedApiKeysSecretName3D265ECA = SharedApiKeysSecret9EA666ED-U7mo8QsThwnT
+GenAIChatBotStack.UserInterfacePublicWebsiteUserInterfaceDomainName0AFFF237 = https://da8vgl7pfic1s.cloudfront.net
+GenAIChatBotStack.metadata = {"ChatbotUserInterfaceDomainName":"https://da8vgl7pfic1s.cloudfront.net","ChatbotUserPoolId":"us-east-1_ElLalTp4K","ChatbotUserPoolClientId":"5mehm5av5dvtbh64gbq2m0e34r","ChatbotUserPoolLink":"https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_ElLalTp4K/users?region=us-east-1","ChatbotGraphqlApiUrl":"https://3gpkuet3jjh5zdncvgkuvgqt7m.appsync-api.us-east-1.amazonaws.com/graphql","ChatbotGraphQLApiId":"mfa7fiwayzd4zoimnalvcnz33u","ChatbotApiKeysSecretName":"SharedApiKeysSecret9EA666ED-U7mo8QsThwnT","ChatbotLoadBalancerDNS":"","ChatbotDomain":"da8vgl7pfic1s.cloudfront.net","ChatbotCompositeAlarmTopicOutput":""}
+Stack ARN:
+arn:aws:cloudformation:us-east-1:013121026899:stack/GenAIChatBotStack/4e7452c0-d92c-11f0-9f59-0affe81523fd

@@ -24,6 +24,7 @@ interface LangChainInterfaceProps {
   readonly byUserIdIndex: string;
   readonly applicationTable: dynamodb.Table;
   readonly chatbotFilesBucket: s3.Bucket;
+  readonly webSearchHandlerArn?: string;
 }
 
 export class LangChainInterface extends Construct {
@@ -85,8 +86,19 @@ export class LangChainInterface extends Construct {
         DEFAULT_KENDRA_S3_DATA_SOURCE_BUCKET_NAME:
           props.ragEngines?.kendraRetrieval?.kendraS3DataSourceBucket
             ?.bucketName ?? "",
+        WEBSEARCH_LAMBDA_ARN: props.webSearchHandlerArn ?? "",
       },
     });
+    
+    // Allow LangChain RequestHandler to invoke WebSearch Lambda (if provided)
+    if (props.webSearchHandlerArn) {
+      requestHandler.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ["lambda:InvokeFunction"],
+          resources: [props.webSearchHandlerArn],
+        })
+      );
+    }
 
     props.chatbotFilesBucket.grantReadWrite(requestHandler);
 

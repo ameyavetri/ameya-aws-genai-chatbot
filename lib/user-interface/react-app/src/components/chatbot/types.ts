@@ -77,6 +77,12 @@ export enum FileStorageProvider {
   S3 = "s3",
 }
 
+export enum DataSourceMode {
+  INTERNAL = "internal",
+  WEB = "web",
+  HYBRID = "hybrid",
+}
+
 export interface SessionFile {
   provider: FileStorageProvider;
   type: string;
@@ -108,6 +114,7 @@ export interface ChatBotRunRequest {
     mode?: string;
     workspaceId?: string;
     modelKwargs?: Record<string, string | boolean | number>;
+    sourceMode?: DataSourceMode;
   };
   applicationId?: string;
 }

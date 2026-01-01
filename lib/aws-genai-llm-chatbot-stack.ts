@@ -18,6 +18,8 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as cr from "aws-cdk-lib/custom-resources";
 import { NagSuppressions } from "cdk-nag";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
+import { WebSearchInterface } from "./model-interfaces/websearch";
+
 
 export interface AwsGenAILLMChatbotStackProps extends cdk.StackProps {
   readonly config: SystemConfig;
@@ -104,6 +106,32 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
           },
         })
       );
+      const webSearch = new WebSearchInterface(this, "WebSearch", {
+        shared,
+      });
+      chatBotApi.messagesTopic.addSubscription(
+        new subscriptions.SqsSubscription(webSearch.ingestionQueue, {
+          filterPolicyWithMessageBody: {
+            direction: sns.FilterOrPolicy.filter(
+              sns.SubscriptionFilter.stringFilter({ allowlist: [Direction.In] })
+            ),
+            sourceMode: sns.FilterOrPolicy.filter(
+              sns.SubscriptionFilter.stringFilter({ allowlist: ["web", "hybrid"] })
+            ),
+            modelInterface: sns.FilterOrPolicy.filter(
+              sns.SubscriptionFilter.stringFilter({ allowlist: ["websearch"] })
+            ),
+          },
+        })
+      );            
+      
+      webSearch.webSearchLambda.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ["secretsmanager:GetSecretValue"],
+          resources: ["*"],
+        })
+      );      
+      
 
       for (const model of models.models) {
         if (model.interface === ModelInterface.LangChain) {
