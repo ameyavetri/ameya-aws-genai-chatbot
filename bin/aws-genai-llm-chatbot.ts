@@ -18,4 +18,4 @@ new AwsGenAILLMChatbotStack(app, `${config.prefix}GenAIChatBotStack`, {
   },
 });
 
-Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
+// Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));

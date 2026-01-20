@@ -13,6 +13,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 import adapters  # noqa: F401 Needed to register the adapters
 from genai_core.utils.websocket import send_to_client
 from genai_core.types import ChatbotAction
+#from utils.intent_detector import IntentDetector
 
 processor = BatchProcessor(event_type=EventType.SQS)
 tracer = Tracer()
@@ -180,43 +181,115 @@ def handle_run(record):
     documents = data.get("documents", [])
     videos = data.get("videos", [])
     system_prompts = record.get("systemPrompts", {})
+    locale = data.get("locale", "en") 
+    
     if not session_id:
         session_id = str(uuid.uuid4())
-
+    
+    # ==================== NEW: Intent Detection & JD Extraction ====================
+    from utils.intent_detector import IntentDetector
+    
+    # Get session history for context
+    from genai_core.langchain import DynamoDBChatMessageHistory
+    chat_history = DynamoDBChatMessageHistory(
+        table_name=os.environ["SESSIONS_TABLE_NAME"],
+        session_id=session_id,
+        user_id=user_id,
+    )
+    session_history = chat_history.messages if hasattr(chat_history, 'messages') else []
+    
+    # Analyze the query
+    query_analysis = IntentDetector.analyze_query(
+        user_prompt=prompt,
+        workspace_id=workspace_id,
+        session_history=session_history
+    )
+    
+    detected_intent = query_analysis['intent']
+    job_description = query_analysis['job_description']
+    clean_query = query_analysis['clean_query']
+    requires_rag = query_analysis['requires_rag']
+    
+    logger.info(
+        "Query analysis complete",
+        intent=detected_intent.value,
+        has_jd=query_analysis['has_jd'],
+        requires_rag=requires_rag,
+        workspace_id=workspace_id
+    )
+    
+    # Use clean query for processing
+    processed_prompt = clean_query
+    
+    # ==================== END: Intent Detection ====================
+    
+    # Get adapter with intent and JD context
     adapter = registry.get_adapter(f"{provider}.{model_id}")
-
+    
     adapter.on_llm_new_token = lambda *args, **kwargs: on_llm_new_token(
         user_id, session_id, *args, **kwargs
     )
-
+    
+    # Pass intent and JD to the adapter
     model = adapter(
         model_id=model_id,
         mode=mode,
         session_id=session_id,
         user_id=user_id,
         model_kwargs=data.get("modelKwargs", {}),
+        user_intent=detected_intent,  # NEW: Pass detected intent
+        job_description=job_description,  # NEW: Pass extracted JD
     )
     
-    context_block = resolve_context_for_prompt(
-        prompt=prompt,
-        source_mode=source_mode,
-        workspace_id=workspace_id,
-        user_id=user_id,
-    )
-    augmented_prompt = build_augmented_prompt(prompt, context_block)
-
+    # ==================== Context Building ====================
+    # For job posting creation with JD, we don't need RAG
+    if detected_intent.value == "job_posting_creation" and job_description:
+        # Build prompt with JD embedded
+        from adapters.shared.prompts.staffing_prompts import STAFFING_PROMPTS
+        user_prompt_template = STAFFING_PROMPTS[locale]["job_posting_creation"]["user_prompt_template"]
+        augmented_prompt = user_prompt_template.format(
+            job_description=job_description,
+            user_query=processed_prompt if processed_prompt else "Analyze this job description."
+        )
+        
+        logger.info("Job posting creation mode - JD embedded in prompt")
+    
+    # For resume assessment, we need RAG + JD
+    elif detected_intent.value == "resume_assessment":
+        if job_description:
+            # JD is embedded in the QA prompt already via adapter
+            # Just use the processed query
+            augmented_prompt = processed_prompt
+            logger.info("Resume assessment mode - will retrieve resumes from RAG")
+        else:
+            # No JD provided - ask for it
+            augmented_prompt = processed_prompt
+            logger.warning("Resume assessment without JD - may need to prompt user")
+    
+    # For QA mode or general, use standard context resolution
+    else:
+        context_block = resolve_context_for_prompt(
+            prompt=processed_prompt,
+            source_mode=source_mode,
+            workspace_id=workspace_id,
+            user_id=user_id,
+        )
+        augmented_prompt = build_augmented_prompt(processed_prompt, context_block)
+    
+    # ==================== Execute Model ====================
     response = model.run(
         prompt=augmented_prompt,
-        workspace_id=workspace_id,
+        workspace_id=workspace_id if requires_rag else None,  # Only use workspace for RAG
         user_groups=user_groups,
         images=images,
         documents=documents,
         videos=videos,
         system_prompts=system_prompts,
     )
-
+    
     logger.debug(response)
-
+    
+    # ==================== Send Response ====================
     send_to_client(
         {
             "type": "text",

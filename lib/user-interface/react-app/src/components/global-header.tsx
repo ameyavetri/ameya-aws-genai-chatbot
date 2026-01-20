@@ -65,7 +65,7 @@ export default function GlobalHeader() {
           {
             type: "button",
             text: "Company Website",
-            href: "https://ameyaedge.ai",
+            href: "https://www.learnbeyondconsulting.com/",
             external: true,
             externalIconAriaLabel: " (opens in a new tab)",
           },

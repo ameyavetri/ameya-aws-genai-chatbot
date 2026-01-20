@@ -1,0 +1,8 @@
+echo "=== Pre-Flight Checklist ==="
+echo "✓ AWS Account: $(aws sts get-caller-identity --query Account --output text)"
+echo "✓ AWS Region: $(aws configure get region)"
+echo "✓ CDK Version: $(npx cdk --version)"
+echo "✓ Node Version: $(node --version)"
+echo "✓ Docker Running: $(docker ps > /dev/null 2>&1 && echo 'Yes' || echo 'No - START DOCKER!')"
+echo "✓ Dependencies Installed: $([ -d node_modules ] && echo 'Yes' || echo 'No - Run npm install!')"
+echo "✓ Bootstrap Complete: $(aws cloudformation describe-stacks --stack-name CDKToolkit > /dev/null 2>&1 && echo 'Yes' || echo 'No - Run cdk bootstrap!')"

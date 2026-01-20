@@ -87,15 +87,15 @@ export async function resolveSourceContext({
 // --------------------------------------------
 
 async function fetchInternalContext(
-    prompt: string,
-    workspaceId?: string
+    _prompt: string,
+    _workspaceId?: string
   ): Promise<string> {
     // TODO: Replace with API call to backend RAG service
     return "";
   }
   
   async function fetchWebContext(
-    prompt: string
+    _prompt: string
   ): Promise<string> {
     // TODO: Replace with API call to Web Search service
     return "";

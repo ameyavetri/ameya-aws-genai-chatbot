@@ -107,4 +107,4 @@ export abstract class Labels {
   }
 }
 
-export const CHATBOT_NAME = "Ameya Data Solution AI Chatbot"; // TODO: Replace with your company name
+export const CHATBOT_NAME = "Learnbeyond Consulting AI Chatbot"; // TODO: Replace with your company name

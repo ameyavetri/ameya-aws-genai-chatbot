@@ -80,11 +80,15 @@ class ModelAdapter:
         mode=ChatbotMode.CHAIN.value,
         disable_streaming=False,
         model_kwargs={},
+        user_intent=None,
+        job_description=None,
     ):
         self.session_id = session_id
         self.user_id = user_id
         self._mode = mode
         self.model_kwargs = model_kwargs
+        self.user_intent = user_intent
+        self.job_description = job_description
         # Disable streaming since the guardrails are applied after the full response
         # With the exception of Bedrock models
         self.disable_streaming = (
