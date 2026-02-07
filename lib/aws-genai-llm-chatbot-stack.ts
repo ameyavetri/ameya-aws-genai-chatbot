@@ -15,10 +15,13 @@ import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as cr from "aws-cdk-lib/custom-resources";
 import { NagSuppressions } from "cdk-nag";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
 import { WebSearchInterface } from "./model-interfaces/websearch";
+import { ConnectorDynamoDBTables } from "./connectors/connector-dynamodb-tables";
+import { ConnectorGateway } from "./connectors/connector-gateway";
 
 
 export interface AwsGenAILLMChatbotStackProps extends cdk.StackProps {
@@ -230,6 +233,79 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
       chatbotFilesBucket: chatBotApi.filesBucket,
       uploadBucket: ragEngines?.uploadBucket,
     });
+
+    // Connector Infrastructure (conditional)
+    if (props.config.connectors?.enabled) {
+      // Connector DynamoDB Tables
+      const connectorTables = new ConnectorDynamoDBTables(
+        this,
+        "ConnectorDynamoDBTables",
+        {
+          prefix: props.config.prefix,
+          kmsKey: shared.kmsKey,
+          retainOnDelete: props.config.retainOnDelete,
+          deletionProtection: props.config.ddbDeletionProtection,
+        }
+      );
+
+      // Connector Gateway (ECS Fargate + ALB) only when at least one connector type is enabled.
+      // An ALB listener requires at least one target group; with zero services we would create an invalid listener.
+      const anyConnectorTypeEnabled =
+        props.config.connectors?.azureSql?.enabled ||
+        props.config.connectors?.sharepoint?.enabled ||
+        props.config.connectors?.dropbox?.enabled;
+
+      if (anyConnectorTypeEnabled) {
+        const connectorVpc = shared.vpc;
+        new ConnectorGateway(this, "ConnectorGateway", {
+          vpc: connectorVpc,
+          prefix: props.config.prefix,
+          azureSqlEnabled: props.config.connectors?.azureSql?.enabled,
+          sharepointEnabled: props.config.connectors?.sharepoint?.enabled,
+          dropboxEnabled: props.config.connectors?.dropbox?.enabled,
+        });
+      }
+
+      // Grant api-handler Lambda access to connectors table
+      const apiHandler = chatBotApi.resolvers[0];
+      if (apiHandler) {
+        connectorTables.connectorsTable.grantReadWriteData(apiHandler);
+
+        // Set environment variable for connectors table name
+        apiHandler.addEnvironment(
+          "CONNECTORS_TABLE_NAME",
+          connectorTables.connectorsTable.tableName
+        );
+
+        // Grant api-handler permission for connector credentials (Part 7.2)
+        // DescribeSecret: validate ARNs; CreateSecret/PutSecretValue/DeleteSecret: create/update/delete connector secrets
+        // GetSecretValue is NOT granted here (only to ECS task roles for MCP servers)
+        apiHandler.addToRolePolicy(
+          new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: [
+              "secretsmanager:DescribeSecret",
+              "secretsmanager:GetResourcePolicy",
+              "secretsmanager:CreateSecret",
+              "secretsmanager:PutSecretValue",
+              "secretsmanager:DeleteSecret",
+            ],
+            resources: ["*"],
+          })
+        );
+      }
+
+      // Wire request-handler (LangChain Lambda) to connectors table so chat flow can use connector context
+      if (langchainInterface) {
+        connectorTables.connectorsTable.grantReadData(
+          langchainInterface.requestHandler
+        );
+        langchainInterface.requestHandler.addEnvironment(
+          "CONNECTORS_TABLE_NAME",
+          connectorTables.connectorsTable.tableName
+        );
+      }
+    }
 
     if (props.config.cognitoFederation?.enabled) {
       const oAuthParams = {

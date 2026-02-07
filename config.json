@@ -1,4 +1,4 @@
-﻿{
+{
   "prefix": "chatbot",
   "bedrock": {
     "enabled": true,
@@ -24,6 +24,19 @@
   },
   "vpc": {
     "createVpc": false
+  },
+  "connectors": {
+    "enabled": true,
+    "vpcId": "",
+    "azureSql": {
+      "enabled": true
+    },
+    "sharepoint": {
+      "enabled": false
+    },
+    "dropbox": {
+      "enabled": true
+    }
   },
   "privateWebsite": false,
   "certificate": "",

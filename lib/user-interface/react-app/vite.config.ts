@@ -32,7 +32,10 @@ export default defineConfig({
                 api_endpoint: `https://${process.env.API_DISTRIBUTION_DOMAIN_NAME}/api`,
                 websocket_endpoint: `wss://${process.env.API_DISTRIBUTION_DOMAIN_NAME}/socket`,
                 rag_enabled: ["T", "t", "true", "True", "TRUE", "1"].includes(
-                  process.env.RAG_ENABLED
+                  process.env.RAG_ENABLED || ""
+                ),
+                connectors_enabled: ["T", "t", "true", "True", "TRUE", "1"].includes(
+                  process.env.CONNECTORS_ENABLED || ""
                 ),
                 default_embeddings_model: process.env.DEFAULT_EMBEDDINGS_MODEL,
                 default_cross_encoder_model:

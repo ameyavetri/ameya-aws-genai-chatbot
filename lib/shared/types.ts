@@ -134,6 +134,19 @@ export interface SystemConfig {
     clientId?: string;
     clientSecret?: string;
   };
+  connectors?: {
+    enabled?: boolean;
+    vpcId?: string;
+    azureSql?: {
+      enabled?: boolean;
+    };
+    sharepoint?: {
+      enabled?: boolean;
+    };
+    dropbox?: {
+      enabled?: boolean;
+    };
+  };
   llms: {
     rateLimitPerIP?: number;
     sagemaker: SupportedSageMakerModels[];

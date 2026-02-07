@@ -1,11 +1,45 @@
 import { SupportedRegion, SystemConfig } from "../lib/shared/types";
 import { existsSync, readFileSync } from "fs";
 
+/** Default connectors (all disabled). Used when section is missing or for normalization. */
+const DEFAULT_CONNECTORS: NonNullable<SystemConfig["connectors"]> = {
+  enabled: false,
+  vpcId: "",
+  azureSql: { enabled: false },
+  sharepoint: { enabled: false },
+  dropbox: { enabled: false },
+};
+
+/** Normalize connectors so missing section is treated as disabled. */
+function normalizeConnectors(
+  config: SystemConfig
+): SystemConfig["connectors"] {
+  const c = config.connectors;
+  if (!c) return { ...DEFAULT_CONNECTORS };
+  return {
+    enabled: c.enabled === true,
+    vpcId: c.vpcId ?? "",
+    azureSql: { enabled: c.azureSql?.enabled === true },
+    sharepoint: { enabled: c.sharepoint?.enabled === true },
+    dropbox: { enabled: c.dropbox?.enabled === true },
+  };
+}
+
+const BIN_CONFIG_PATH = "./bin/config.json";
+const ROOT_CONFIG_PATH = "./config.json";
+
 export function getConfig(): SystemConfig {
-  if (existsSync("./bin/config.json")) {
-    return JSON.parse(
-      readFileSync("./bin/config.json").toString("utf8")
+  const configPath = existsSync(BIN_CONFIG_PATH)
+    ? BIN_CONFIG_PATH
+    : existsSync(ROOT_CONFIG_PATH)
+      ? ROOT_CONFIG_PATH
+      : null;
+  if (configPath) {
+    const config = JSON.parse(
+      readFileSync(configPath).toString("utf8")
     ) as SystemConfig;
+    const connectors = normalizeConnectors(config);
+    return { ...config, connectors };
   }
   // Default config
   return {
@@ -63,7 +97,6 @@ export function getConfig(): SystemConfig {
           name: "amazon.titan-embed-text-v1",
           dimensions: 1536,
         },
-        //Support for inputImage is not yet implemented for amazon.titan-embed-image-v1
         {
           provider: "bedrock",
           name: "amazon.titan-embed-image-v1",
@@ -95,6 +128,13 @@ export function getConfig(): SystemConfig {
           default: true,
         },
       ],
+    },
+    connectors: {
+      enabled: false,
+      vpcId: "",
+      azureSql: { enabled: false },
+      sharepoint: { enabled: false },
+      dropbox: { enabled: false },
     },
   };
 }

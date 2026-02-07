@@ -69,6 +69,40 @@ If Amazon Aurora or OpenSearch is selected, you will also need to select a defau
 
 For more details, please refer to the [document retrieval](../documentation/retriever.md) which explain how to add additional engines.
 
+## Connectors (MCP data source connectors)
+
+When enabled, the project deploys connector infrastructure (DynamoDB tables, ECS Connector Gateway) so the chatbot can use MCP-based connectors (e.g. Azure SQL, SharePoint, Dropbox). Configure this in `config.json` (or `bin/config.json` when using the CLI). All of these keys are **deploy-time only**: they control what CDK creates. At runtime, Lambdas do **not** read `config.json`; only the environment variable **`CONNECTORS_TABLE_NAME`** (set by CDK when connectors are enabled) is read by the api-handler and request-handler to enable connector features.
+
+| Key | Type | Default | Effect |
+|-----|------|---------|--------|
+| **connectors.enabled** | boolean | `false` | Master switch. When `true`, CDK creates the connector DynamoDB table and Connector Gateway (ALB + ECS). When `false`, no connector resources are created. |
+| **connectors.vpcId** | string | `""` | Reserved for a dedicated VPC for the connector gateway; currently not used by CDK (stack uses the same VPC as the rest of the app). |
+| **connectors.azureSql.enabled** | boolean | `false` | When `true`, deploy the Azure SQL MCP connector service (ECS task behind the Connector Gateway). |
+| **connectors.sharepoint.enabled** | boolean | `false` | When `true`, deploy the SharePoint MCP connector service (when implemented). |
+| **connectors.dropbox.enabled** | boolean | `false` | When `true`, deploy the Dropbox MCP connector service. |
+
+If the `connectors` section is missing from your config, it is treated as disabled. For CDK deploy, config is read from **`bin/config.json`** if present, otherwise from the project root **`config.json`**. See [Deploying and configuring connectors](connector-deploy-and-config.md) for deployment steps and [Connectors developer guide](../documentation/connectors-developer-guide.md) for architecture and API details.
+
+## OpenAI and third-party model API keys
+To see **OpenAI models** (e.g. GPT-4) in the Chat model list and use them:
+
+1. **Use the API Keys secret created by your stack** — Do not create a separate secret. The app reads only from the secret whose ARN is set in the stack (output/export: `ChatbotApiKeysSecretName` or similar). In **AWS Console → Secrets Manager**, find the secret whose name matches your stack (e.g. `chatbot-ApiKeysSecret...` or `<stack-name>-ApiKeysSecret-...`).
+2. **Edit that secret** — Retrieve secret value → Edit → set the value to a **JSON object**. Add the key **exactly** `OPENAI_API_KEY` (all caps, underscore). Example:
+   ```json
+   {
+     "OPENAI_API_KEY": "sk-your-openai-api-key-here"
+   }
+   ```
+   If the secret already has other keys (e.g. `headerValue`), add `OPENAI_API_KEY` to the same JSON; do not remove existing keys.
+3. **Save** the secret. The API handler caches the secret for up to 60 seconds, so wait a minute or refresh the Chat page; OpenAI models (e.g. gpt-4, gpt-3.5-turbo) should then appear in the model dropdown.
+
+If you only see Bedrock models, the most common causes are: (a) the key was added to a **different** secret, or (b) the key name is wrong (e.g. `openai_api_key` instead of `OPENAI_API_KEY`). The name must match exactly what the code expects.
+
+For more keys (e.g. Azure OpenAI, Cohere, AI21), see [Model requirements](../documentation/model-requirements.md).
+
+### Anthropic (Claude) models
+**Anthropic Claude models are already available** when Bedrock is enabled. They appear as Bedrock models in the Chat (e.g. `anthropic.claude-3-sonnet`, `anthropic.claude-3-haiku`). Enable [model access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) for the Claude family in the Bedrock console if you do not see them. The application does not currently support the **direct Anthropic API** (api.anthropic.com); use Bedrock for Claude.
+
 ## Advanced settings
 ### API Throttling
 To protect the environment against sudden traffic increase, the project throttle incoming requests by IP using [AWS WAF rate limit rules](https://docs.aws.amazon.com/waf/latest/developerguide/waf-rule-statement-type-rate-based.html). As part of the configuration, you can select 2 threholds:

@@ -94,7 +94,10 @@ export class UserInterface extends Construct {
       redirectSignIn = `https://${this.publishedDomain}`;
     }
 
-    const sagemakerEmbedingModels = props.config.rag.embeddingsModels.filter(
+    // Defensive: config.rag may omit embeddingsModels/crossEncoderModels (e.g. minimal config.json)
+    const ragEmbeddingsModels = props.config.rag.embeddingsModels ?? [];
+    const ragCrossEncoderModels = props.config.rag.crossEncoderModels ?? [];
+    const sagemakerEmbedingModels = ragEmbeddingsModels.filter(
       (i) => i.provider === "sagemaker"
     );
     const exportsAsset = s3deploy.Source.jsonData("aws-exports.json", {
@@ -127,15 +130,22 @@ export class UserInterface extends Construct {
               name: props.config.cognitoFederation?.customProviderName,
             }
           : undefined,
-        rag_enabled: props.config.rag.enabled,
-        cross_encoders_enabled: props.config.rag.crossEncoderModels.length > 0,
+        // Show RAG UI when rag.enabled is true or when any RAG engine is deployed
+        rag_enabled:
+          props.config.rag.enabled ||
+          props.config.rag.engines.aurora.enabled ||
+          props.config.rag.engines.opensearch.enabled ||
+          props.config.rag.engines.kendra.enabled ||
+          (props.config.rag.engines.knowledgeBase?.enabled ?? false),
+        connectors_enabled: props.config.connectors?.enabled ?? false,
+        cross_encoders_enabled: ragCrossEncoderModels.length > 0,
         sagemaker_embeddings_enabled: sagemakerEmbedingModels.length > 0,
         default_embeddings_model:
-          props.config.rag.embeddingsModels.length > 0
+          ragEmbeddingsModels.length > 0
             ? Utils.getDefaultEmbeddingsModel(props.config)
             : undefined,
         default_cross_encoder_model:
-          props.config.rag.crossEncoderModels.length > 0
+          ragCrossEncoderModels.length > 0
             ? Utils.getDefaultCrossEncoderModel(props.config)
             : undefined,
         privateWebsite: props.config.privateWebsite ? true : false,

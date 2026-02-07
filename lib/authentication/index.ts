@@ -363,16 +363,20 @@ export class Authentication extends Construct {
     this.userPool = userPool;
     this.userPoolClient = userPoolClient;
 
+    // Export names must be unique per account/region (prefix or stack name)
+    const authExportPrefix = config.prefix
+      ? `${config.prefix}`
+      : `${cdk.Stack.of(this).stackName}-`;
     new cdk.CfnOutput(this, getConstructId("UserPoolId", config), {
       value: userPool.userPoolId,
       description: "User pool id for the chatbot application.",
-      exportName: getConstructId("ChatbotUserPoolId", config),
+      exportName: `${authExportPrefix}ChatbotUserPoolId`,
     });
 
     new cdk.CfnOutput(this, getConstructId("UserPoolWebClientId", config), {
       value: userPoolClient.userPoolClientId,
       description: "App client id for the chatbot application.",
-      exportName: getConstructId("ChatbotUserPoolClientId", config),
+      exportName: `${authExportPrefix}ChatbotUserPoolClientId`,
     });
 
     new cdk.CfnOutput(this, getConstructId("UserPoolLink", config), {
@@ -382,7 +386,7 @@ export class Authentication extends Construct {
         userPool.userPoolId
       }/users?region=${cdk.Stack.of(this).region}`,
       description: "Link to user pool of the chatbot application.",
-      exportName: getConstructId("ChatbotUserPoolLink", config),
+      exportName: `${authExportPrefix}ChatbotUserPoolLink`,
     });
 
     /**

@@ -43,8 +43,8 @@ These keys will be injected at runtime into the Lambda function Environment Vari
 
 For example, if you wish to be able to interact with AI21 Labs., OpenAI's and Cohere endpoints:
 
-- Open the [Model Interface Keys Secret](https://github.com/aws-samples/aws-genai-llm-chatbot/blob/main/lib/model-interfaces/langchain/index.ts#L38) in Secrets Manager. You can find the secret name in the stack output, too.
-- Update the Secrets by adding a key to the JSON
+- Open the **API Keys secret created by your stack** in Secrets Manager (do not use a different secret). The secret name is in the stack output (e.g. `ChatbotApiKeysSecretName` or `<prefix>ApiKeysSecretName`).
+- Update the secret value to be a JSON object and add the key to the JSON. The key name must be exactly `OPENAI_API_KEY` (all caps) for OpenAI models to appear in the Chat.
 
 ```json
 {

@@ -111,17 +111,22 @@ export class ChatBotApi extends Construct {
     });
 
     if (props.shared.webACLRules.length > 0) {
+      // WAF Web ACL name must be unique per account/region (prefix or stack name)
+      const wafName = props.config.prefix
+        ? `${props.config.prefix}WafAppsync`
+        : `${cdk.Stack.of(this).stackName}-WafAppsync`;
+      const wafMetricName = wafName.replace(/-/g, "_"); // CloudWatch: alphanumeric and underscore only
       new wafv2.CfnWebACLAssociation(this, "WebACLAssociation", {
         webAclArn: new wafv2.CfnWebACL(this, "WafAppsync", {
           defaultAction: { allow: {} },
           scope: "REGIONAL",
           visibilityConfig: {
             cloudWatchMetricsEnabled: true,
-            metricName: "WafAppsync",
+            metricName: wafMetricName,
             sampledRequestsEnabled: true,
           },
           description: "WAFv2 ACL for APPSync",
-          name: getConstructId("WafAppsync", props.config),
+          name: wafName,
           rules: [
             ...props.shared.webACLRules,
             ...this.createWafRules(
@@ -165,17 +170,20 @@ export class ChatBotApi extends Construct {
 
     api.grantMutation(realtimeBackend.resolvers.outgoingMessageHandler);
 
-    // Prints out URL
+    // Export names must be unique per account/region (prefix or stack name); match SeedFarmer module.yaml
+    const graphqlExportPrefix = props.config.prefix
+      ? `${props.config.prefix}`
+      : `${cdk.Stack.of(this).stackName}-`;
     new cdk.CfnOutput(this, getConstructId("GraphQLApiUrl", props.config), {
       value: api.graphqlUrl,
       description: "Graphql API URL",
-      exportName: getConstructId("GraphQLApiUrl", props.config),
+      exportName: `${graphqlExportPrefix}ChatbotGraphqlApiUrl`,
     });
 
-    // Prints out the AppSync GraphQL API key to the terminal
     new cdk.CfnOutput(this, getConstructId("GraphQLApiId", props.config), {
       value: api.apiId || "",
-      exportName: getConstructId("GraphQLApiId", props.config),
+      description: "GraphQL API ID",
+      exportName: `${graphqlExportPrefix}GraphQLApiId`,
     });
 
     this.messagesTopic = realtimeBackend.messagesTopic;

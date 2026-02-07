@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 from genai_core.registry import registry
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.utilities import parameters
@@ -56,34 +57,174 @@ def _format_context_block(title: str, items: list) -> str:
     return "\n".join(lines).strip()
 
 
-def resolve_context_for_prompt(prompt: str, source_mode: str, workspace_id: str, user_id: str) -> str:
+def _format_connector_context_block(
+    items: List[Dict[str, Any]], source_label: str
+) -> str:
     """
-    Phase-2: Minimal stub wiring.
-    - INTERNAL: pull RAG context (hook later)
-    - WEB: pull web context (hook later)
-    - HYBRID: both
+    Format connector items with citation labels and source attribution (Part 5).
+    Each entry shows [N] title, URL, Notes, and "Source: <source_label>".
+    """
+    if not items:
+        return ""
+    lines = ["## External Data Source Results"]
+    for i, it in enumerate(items, start=1):
+        t = (it.get("title") or it.get("source") or "External Data Source").strip()
+        u = (it.get("source_url") or it.get("url") or "").strip()
+        s = (it.get("snippet") or it.get("content") or "").strip()
+        if isinstance(s, dict):
+            s = str(s)
+        lines.append(f"[{i}] {t}".strip())
+        lines.append(f"Source: {source_label}")
+        if u:
+            lines.append(f"URL: {u}")
+        if s:
+            lines.append(f"Notes: {s}")
+        lines.append("")  # blank line
+    return "\n".join(lines).strip()
 
-    For now, returns a string block you prepend into the LLM prompt.
+
+def resolve_context_for_prompt(
+    prompt: str,
+    source_mode: str,
+    workspace_id: str,
+    user_id: str,
+    application_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Build context block for the LLM and connector citations/sources (Part 5).
+
+    Returns a dict with:
+      - context_block: string to prepend into the LLM prompt
+      - connector_citations: list of {title, url, source} for UI
+      - connector_sources: list of {connector_id, connector_type, connector_name, citation_count}
     """
     mode = _normalize_source_mode(source_mode)
 
-    internal_items = []
-    web_items = []
+    internal_items: List[Dict[str, Any]] = []
+    web_items: List[Dict[str, Any]] = []
+    connector_items: List[Dict[str, Any]] = []
+    connector_citations: List[Dict[str, Any]] = []
+    connector_sources: List[Dict[str, Any]] = []
 
     # ---- INTERNAL RAG (hook later) ----
     if mode in ["internal", "hybrid"]:
         # TODO (next step): call your existing RAG retriever using workspace_id.
-        # internal_items should become list of {title,url,snippet} or similar.
         internal_items = []
 
     # ---- WEB SEARCH (hook later) ----
     if mode in ["web", "hybrid"]:
-        # IMPORTANT: This requires Lambda outbound internet (NAT) OR a private web search proxy.
-        # TODO (next step): implement web search provider and fill web_items.
         web_items = []
 
+    # ---- CONNECTOR CONTEXT (Phase 5) ----
+    connectors_table_name = os.getenv("CONNECTORS_TABLE_NAME")
+    if connectors_table_name and workspace_id:
+        try:
+            from genai_core.connectors import registry as connector_registry
+            from genai_core.connectors import intent as connector_intent
+            from genai_core.connectors import orchestrator as connector_orchestrator
+
+            if application_id:
+                connectors = connector_registry.get_connectors_for_application(
+                    workspace_id=workspace_id, application_id=application_id
+                )
+            else:
+                all_connectors = connector_registry.list_connectors(workspace_id=workspace_id)
+                connectors = [
+                    c
+                    for c in all_connectors
+                    if c.get("status", "active") == "active"
+                    and not c.get("application_ids")
+                ]
+
+            if connectors:
+                intent_analysis = connector_intent.detect_connector_intent(prompt)
+                if intent_analysis.get("needs_connector"):
+                    selected_connector = None
+                    if intent_analysis.get("connector_id"):
+                        selected_connector = next(
+                            (
+                                c
+                                for c in connectors
+                                if c.get("connector_id") == intent_analysis["connector_id"]
+                            ),
+                            None,
+                        )
+                    if not selected_connector and connectors:
+                        selected_connector = connectors[0]
+
+                    if selected_connector:
+                        connector_id = selected_connector.get("connector_id")
+                        result = connector_orchestrator.execute_query(
+                            workspace_id=workspace_id,
+                            connector_id=connector_id,
+                            user_prompt=prompt,
+                            intent=intent_analysis.get("intent"),
+                            params=intent_analysis.get("params"),
+                            application_id=application_id,
+                        )
+
+                        raw_items = result.get("items", [])
+                        connector_name = (
+                            selected_connector.get("name")
+                            or selected_connector.get("connector_type")
+                            or selected_connector.get("type")
+                            or "External"
+                        )
+                        connector_type = (
+                            selected_connector.get("connector_type")
+                            or selected_connector.get("type")
+                            or "connector"
+                        )
+
+                        for item in raw_items:
+                            title = (
+                                item.get("title")
+                                or item.get("source")
+                                or item.get("connector_name")
+                                or "External Data Source"
+                            )
+                            url = item.get("source_url") or item.get("url") or ""
+                            snippet = item.get("content") or item.get("snippet") or ""
+                            if isinstance(snippet, dict):
+                                snippet = str(snippet)
+                            source = (
+                                item.get("connector_name")
+                                or item.get("source")
+                                or connector_name
+                            )
+                            connector_items.append({
+                                "title": title,
+                                "snippet": snippet,
+                                "url": url,
+                                "source_url": url,
+                                "source": source,
+                            })
+                            connector_citations.append({
+                                "title": title if isinstance(title, str) else str(title),
+                                "url": url,
+                                "source": source if isinstance(source, str) else str(source),
+                            })
+
+                        if connector_items:
+                            connector_sources.append({
+                                "connector_id": connector_id,
+                                "connector_type": connector_type,
+                                "connector_name": connector_name,
+                                "citation_count": len(connector_items),
+                            })
+
+        except Exception as exc:
+            logger.warning(
+                f"Connector context retrieval failed: {exc}", exc_info=True
+            )
+            connector_items = []
+            connector_citations = []
+            connector_sources = []
+
     parts = []
-    internal_block = _format_context_block("Internal Knowledge Base Results", internal_items)
+    internal_block = _format_context_block(
+        "Internal Knowledge Base Results", internal_items
+    )
     if internal_block:
         parts.append(internal_block)
 
@@ -91,7 +232,37 @@ def resolve_context_for_prompt(prompt: str, source_mode: str, workspace_id: str,
     if web_block:
         parts.append(web_block)
 
-    return "\n\n".join(parts).strip()
+    if connector_items and connector_sources:
+        source_label = connector_sources[0].get("connector_name", "External Data Source")
+        connector_block = _format_connector_context_block(
+            connector_items, source_label
+        )
+        if connector_block:
+            parts.append(connector_block)
+        # Part 10: logging and metrics when connector context is used
+        first_source = connector_sources[0]
+        logger.info(
+            "connector context used in prompt",
+            workspace_id=workspace_id,
+            connector_id=first_source.get("connector_id"),
+            connector_type=first_source.get("connector_type"),
+            operation="resolve_context_for_prompt",
+            intent_matched=True,
+        )
+        try:
+            from genai_core.connectors import metrics as connector_metrics
+
+            connector_metrics.put_connector_context_used(workspace_id)
+        except Exception:  # noqa: S110
+            pass
+
+    context_block = "\n\n".join(parts).strip()
+
+    return {
+        "context_block": context_block,
+        "connector_citations": connector_citations,
+        "connector_sources": connector_sources,
+    }
 
 
 def build_augmented_prompt(user_prompt: str, context_block: str) -> str:
@@ -242,6 +413,8 @@ def handle_run(record):
     )
     
     # ==================== Context Building ====================
+    connector_sources: List[Dict[str, Any]] = []
+    connector_citations: List[Dict[str, Any]] = []
     # For job posting creation with JD, we don't need RAG
     if detected_intent.value == "job_posting_creation" and job_description:
         # Build prompt with JD embedded
@@ -266,16 +439,21 @@ def handle_run(record):
             augmented_prompt = processed_prompt
             logger.warning("Resume assessment without JD - may need to prompt user")
     
-    # For QA mode or general, use standard context resolution
+    # For QA mode or general, use standard context resolution (Part 5: citations/sources)
     else:
-        context_block = resolve_context_for_prompt(
+        application_id = data.get("applicationId")
+        context_result = resolve_context_for_prompt(
             prompt=processed_prompt,
             source_mode=source_mode,
             workspace_id=workspace_id,
             user_id=user_id,
+            application_id=application_id,
         )
+        context_block = context_result["context_block"]
+        connector_sources = context_result.get("connector_sources", [])
+        connector_citations = context_result.get("connector_citations", [])
         augmented_prompt = build_augmented_prompt(processed_prompt, context_block)
-    
+
     # ==================== Execute Model ====================
     response = model.run(
         prompt=augmented_prompt,
@@ -286,9 +464,18 @@ def handle_run(record):
         videos=videos,
         system_prompts=system_prompts,
     )
-    
+
     logger.debug(response)
-    
+
+    # Merge connector citations and sources into response metadata (Part 5)
+    if connector_sources or connector_citations:
+        meta = response.get("metadata") or {}
+        response["metadata"] = {
+            **meta,
+            "connector_sources": connector_sources,
+            "connector_citations": connector_citations,
+        }
+
     # ==================== Send Response ====================
     send_to_client(
         {

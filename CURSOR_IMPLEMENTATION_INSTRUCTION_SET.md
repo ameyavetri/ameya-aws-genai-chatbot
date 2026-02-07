@@ -479,6 +479,7 @@ Document exact deployment steps with SeedFarmer and CDK, config inputs, validati
 2. **Config**
    - In SeedFarmer (or equivalent): set `CONNECTORS_ENABLE=true`, `CONNECTORS_AZURE_SQL_ENABLE=true`, and `CONNECTORS_VPC_ID` if required.
    - Run `npm run config` (or equivalent) to regenerate `./bin/config.json` with `connectors.enabled: true` and `connectors.azureSql.enabled: true`.
+   - For non-interactive/SeedFarmer: set `SEEDFARMER_DEPLOYMENT=true` (or use `--non-interactive`), set the `CONNECTORS_*` env vars above, then run `node ./dist/cli/magic.js config --non-interactive` from repo root. Output is written to `./bin/config.json`.
 
 3. **Deploy**
    - Execute SeedFarmer deploy (or `npx cdk deploy` with config that includes connectors).

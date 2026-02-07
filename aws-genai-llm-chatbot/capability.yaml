@@ -91,6 +91,36 @@ input:
     defaultValue: ""
     label: Nexus Auth Token URL
     isRequired: false
+  - name: CONNECTORS_ENABLE
+    type: Boolean
+    description: Enable data source connectors via MCP
+    defaultValue: false
+    label: Enable Connectors
+    isRequired: false
+  - name: CONNECTORS_AZURE_SQL_ENABLE
+    type: Boolean
+    description: Enable Azure SQL connector
+    defaultValue: false
+    label: Enable Azure SQL Connector
+    isRequired: false
+  - name: CONNECTORS_SHAREPOINT_ENABLE
+    type: Boolean
+    description: Enable SharePoint connector
+    defaultValue: false
+    label: Enable SharePoint Connector
+    isRequired: false
+  - name: CONNECTORS_DROPBOX_ENABLE
+    type: Boolean
+    description: Enable Dropbox connector
+    defaultValue: false
+    label: Enable Dropbox Connector
+    isRequired: false
+  - name: CONNECTORS_VPC_ID
+    type: String
+    description: Reserved for future use. VPC ID for connector gateway. Optional; not used today (connector gateway uses the same VPC as the rest of the stack).
+    defaultValue: ""
+    label: Connectors VPC ID
+    isRequired: false
 environments:
   - name: DEPLOYMENT
     description: Entire Capability Environment

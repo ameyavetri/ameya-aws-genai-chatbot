@@ -395,6 +395,92 @@ type Application @aws_cognito_user_pools {
   updateTime: AWSDateTime
 }
 
+# ---------------------------------------------------------------------------
+# Part 3: Connector (MCP data source) schema
+# Types and inputs for connector CRUD; Query/Mutation fields are below.
+# Resolvers are mapped in rest-api.ts (addResolvers) to the api-handler Lambda.
+# ---------------------------------------------------------------------------
+type ConnectorEndpoint @aws_cognito_user_pools {
+  type: String
+  url: String
+}
+
+type ConnectorAllowedResources @aws_cognito_user_pools {
+  schemas: [String]
+  tables: [String]
+  views: [String]
+  rateLimits: ConnectorRateLimits
+}
+
+type ConnectorRateLimits @aws_cognito_user_pools {
+  maxRowsPerQuery: Int
+}
+
+type Connector @aws_cognito_user_pools {
+  id: ID!
+  workspaceId: ID!
+  name: String!
+  type: String!
+  status: String
+  endpoint: ConnectorEndpoint
+  credentialsSecretArn: String
+  applicationIds: [String]
+  allowedResources: ConnectorAllowedResources
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+}
+
+type ConnectorHealth @aws_cognito_user_pools {
+  status: String!
+  details: String
+  timestamp: AWSDateTime
+}
+
+input ConnectorEndpointInput {
+  type: String
+  url: String
+}
+
+input ConnectorAllowedResourcesInput {
+  schemas: [String]
+  tables: [String]
+  views: [String]
+  rateLimits: ConnectorRateLimitsInput
+}
+
+input ConnectorRateLimitsInput {
+  maxRowsPerQuery: Int
+}
+
+input CreateConnectorInput {
+  workspaceId: String!
+  name: String!
+  type: String!
+  endpoint: ConnectorEndpointInput
+  credentialsSecretArn: String
+  credentials: String
+  applicationIds: [String]
+  allowedResources: ConnectorAllowedResourcesInput
+}
+
+input UpdateConnectorInput {
+  connectorId: String!
+  workspaceId: String!
+  name: String
+  type: String
+  endpoint: ConnectorEndpointInput
+  credentialsSecretArn: String
+  credentials: String
+  applicationIds: [String]
+  allowedResources: ConnectorAllowedResourcesInput
+  status: String
+}
+
+input TestConnectorInput {
+  connectorId: String!
+  workspaceId: String!
+}
+
 type Mutation {
   createKendraWorkspace(input: CreateWorkspaceKendraInput!): Workspace!
     @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
@@ -438,6 +524,12 @@ type Mutation {
     @aws_cognito_user_pools(cognito_groups: ["admin"])
   deleteApplication(id: String!): Boolean
     @aws_cognito_user_pools(cognito_groups: ["admin"])
+  createConnector(input: CreateConnectorInput!): Connector!
+    @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
+  updateConnector(input: UpdateConnectorInput!): Connector!
+    @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
+  deleteConnector(connectorId: String!, workspaceId: String!): Boolean
+    @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
 }
 
 type Query {
@@ -482,6 +574,12 @@ type Query {
   listRoles: [Role!]! @aws_cognito_user_pools(cognito_groups: ["admin"])
   getApplication(id: String!): Application @aws_cognito_user_pools
   listApplications: [Application!]! @aws_cognito_user_pools
+  listConnectors(workspaceId: String!, connectorType: String): [Connector!]!
+    @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
+  getConnector(connectorId: String!, workspaceId: String!): Connector
+    @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
+  testConnector(input: TestConnectorInput!): ConnectorHealth!
+    @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
 }
 
 type Subscription {

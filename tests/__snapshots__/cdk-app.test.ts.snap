@@ -124,7 +124,7 @@ exports[`snapshot test with CMK 1`] = `
     "AuthenticationUserPoolIdF0D106F7": {
       "Description": "User pool id for the chatbot application.",
       "Export": {
-        "Name": "ChatbotUserPoolId",
+        "Name": "prefixChatbotUserPoolId",
       },
       "Value": {
         "Ref": "AuthenticationUserPool28698864",
@@ -133,7 +133,7 @@ exports[`snapshot test with CMK 1`] = `
     "AuthenticationUserPoolLink55CE7EC4": {
       "Description": "Link to user pool of the chatbot application.",
       "Export": {
-        "Name": "ChatbotUserPoolLink",
+        "Name": "prefixChatbotUserPoolLink",
       },
       "Value": {
         "Fn::Join": [
@@ -151,7 +151,7 @@ exports[`snapshot test with CMK 1`] = `
     "AuthenticationUserPoolWebClientId80D5526A": {
       "Description": "App client id for the chatbot application.",
       "Export": {
-        "Name": "ChatbotUserPoolClientId",
+        "Name": "prefixChatbotUserPoolClientId",
       },
       "Value": {
         "Ref": "AuthenticationUserPoolUserPoolClient8AE1704E",
@@ -159,7 +159,7 @@ exports[`snapshot test with CMK 1`] = `
     },
     "ChatBotApiGraphQLApiIdD57A1352": {
       "Export": {
-        "Name": "GraphQLApiId",
+        "Name": "prefixGraphQLApiId",
       },
       "Value": {
         "Fn::GetAtt": [
@@ -171,7 +171,7 @@ exports[`snapshot test with CMK 1`] = `
     "ChatBotApiGraphQLApiUrl60848283": {
       "Description": "Graphql API URL",
       "Export": {
-        "Name": "GraphQLApiUrl",
+        "Name": "prefixChatbotGraphqlApiUrl",
       },
       "Value": {
         "Fn::GetAtt": [
@@ -204,7 +204,7 @@ exports[`snapshot test with CMK 1`] = `
     },
     "SharedApiKeysSecretName3D265ECA": {
       "Export": {
-        "Name": "ApiKeysSecretName",
+        "Name": "prefixApiKeysSecretName",
       },
       "Value": {
         "Fn::Join": [
@@ -5232,7 +5232,7 @@ schema {
           "Allow": {},
         },
         "Description": "WAFv2 ACL for APPSync",
-        "Name": "WafAppsync",
+        "Name": "prefixWafAppsync",
         "Rules": [
           {
             "Action": {
@@ -5340,7 +5340,7 @@ schema {
         "Scope": "REGIONAL",
         "VisibilityConfig": {
           "CloudWatchMetricsEnabled": true,
-          "MetricName": "WafAppsync",
+          "MetricName": "prefixWafAppsync",
           "SampledRequestsEnabled": true,
         },
       },

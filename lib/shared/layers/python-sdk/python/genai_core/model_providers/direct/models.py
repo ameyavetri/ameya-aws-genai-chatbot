@@ -185,9 +185,9 @@ def _list_bedrock_models():
         if not bedrock:
             return None
 
-        response = bedrock.list_foundation_models(
-            byInferenceType=genai_core.types.InferenceType.ON_DEMAND.value,
-        )
+        # Do not filter by inference type so all models are listed (e.g. Claude 4.5,
+        # latest Sonnet/Haiku). Filtering by ON_DEMAND alone can hide newer models.
+        response = bedrock.list_foundation_models()
         bedrock_models = [
             m
             for m in response.get("modelSummaries", [])

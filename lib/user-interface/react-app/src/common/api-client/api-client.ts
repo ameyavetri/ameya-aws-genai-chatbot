@@ -14,6 +14,7 @@ import { UserFeedbackClient } from "./user-feedback-client";
 import { BedrockKBClient } from "./kb-client";
 import { RolesClient } from "./roles-client";
 import { ApplicationsClient } from "./applications-client";
+import { ConnectorsClient } from "./connectors-client";
 
 export class ApiClient {
   private _healthClient?: HealthClient;
@@ -31,6 +32,7 @@ export class ApiClient {
   private _bedrockKBClient?: BedrockKBClient;
   private _rolesClient?: RolesClient;
   private _applicationsClient?: ApplicationsClient;
+  private _connectorsClient?: ConnectorsClient;
 
   public get health() {
     if (!this._healthClient) {
@@ -150,6 +152,14 @@ export class ApiClient {
     }
 
     return this._applicationsClient;
+  }
+
+  public get connectors() {
+    if (!this._connectorsClient) {
+      this._connectorsClient = new ConnectorsClient();
+    }
+
+    return this._connectorsClient;
   }
 
   constructor(protected _appConfig: AppConfig) {}

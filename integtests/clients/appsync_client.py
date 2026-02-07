@@ -468,3 +468,148 @@ class AppSyncClient:
             )
         )
         return self.client.execute(query).get("getApplication")
+
+    # -------------------------------------------------------------------------
+    # Connectors (Part 6 integration tests)
+    # -------------------------------------------------------------------------
+
+    def list_connectors(self, workspace_id: str, connector_type: str = None):
+        args = {"workspaceId": workspace_id}
+        if connector_type is not None:
+            args["connectorType"] = connector_type
+        query = dsl_gql(
+            DSLQuery(
+                self.schema.Query.listConnectors.args(**args).select(
+                    self.schema.Connector.id,
+                    self.schema.Connector.workspaceId,
+                    self.schema.Connector.name,
+                    self.schema.Connector.type,
+                    self.schema.Connector.status,
+                    self.schema.Connector.endpoint.select(
+                        self.schema.ConnectorEndpoint.type,
+                        self.schema.ConnectorEndpoint.url,
+                    ),
+                    self.schema.Connector.credentialsSecretArn,
+                    self.schema.Connector.applicationIds,
+                    self.schema.Connector.allowedResources.select(
+                        self.schema.ConnectorAllowedResources.schemas,
+                        self.schema.ConnectorAllowedResources.tables,
+                        self.schema.ConnectorAllowedResources.views,
+                    ),
+                    self.schema.Connector.createdAt,
+                    self.schema.Connector.updatedAt,
+                )
+            )
+        )
+        return self.client.execute(query).get("listConnectors")
+
+    def get_connector(self, connector_id: str, workspace_id: str):
+        query = dsl_gql(
+            DSLQuery(
+                self.schema.Query.getConnector.args(
+                    connectorId=connector_id, workspaceId=workspace_id
+                ).select(
+                    self.schema.Connector.id,
+                    self.schema.Connector.workspaceId,
+                    self.schema.Connector.name,
+                    self.schema.Connector.type,
+                    self.schema.Connector.status,
+                    self.schema.Connector.endpoint.select(
+                        self.schema.ConnectorEndpoint.type,
+                        self.schema.ConnectorEndpoint.url,
+                    ),
+                    self.schema.Connector.credentialsSecretArn,
+                    self.schema.Connector.applicationIds,
+                    self.schema.Connector.allowedResources.select(
+                        self.schema.ConnectorAllowedResources.schemas,
+                        self.schema.ConnectorAllowedResources.tables,
+                        self.schema.ConnectorAllowedResources.views,
+                    ),
+                    self.schema.Connector.createdAt,
+                    self.schema.Connector.updatedAt,
+                )
+            )
+        )
+        return self.client.execute(query).get("getConnector")
+
+    def create_connector(self, input: dict):
+        query = dsl_gql(
+            DSLMutation(
+                self.schema.Mutation.createConnector.args(input=input).select(
+                    self.schema.Connector.id,
+                    self.schema.Connector.workspaceId,
+                    self.schema.Connector.name,
+                    self.schema.Connector.type,
+                    self.schema.Connector.status,
+                    self.schema.Connector.endpoint.select(
+                        self.schema.ConnectorEndpoint.type,
+                        self.schema.ConnectorEndpoint.url,
+                    ),
+                    self.schema.Connector.credentialsSecretArn,
+                    self.schema.Connector.applicationIds,
+                    self.schema.Connector.allowedResources.select(
+                        self.schema.ConnectorAllowedResources.schemas,
+                        self.schema.ConnectorAllowedResources.tables,
+                        self.schema.ConnectorAllowedResources.views,
+                    ),
+                    self.schema.Connector.createdAt,
+                    self.schema.Connector.updatedAt,
+                )
+            )
+        )
+        return self.client.execute(query).get("createConnector")
+
+    def update_connector(self, input: dict):
+        query = dsl_gql(
+            DSLMutation(
+                self.schema.Mutation.updateConnector.args(input=input).select(
+                    self.schema.Connector.id,
+                    self.schema.Connector.workspaceId,
+                    self.schema.Connector.name,
+                    self.schema.Connector.type,
+                    self.schema.Connector.status,
+                    self.schema.Connector.endpoint.select(
+                        self.schema.ConnectorEndpoint.type,
+                        self.schema.ConnectorEndpoint.url,
+                    ),
+                    self.schema.Connector.credentialsSecretArn,
+                    self.schema.Connector.applicationIds,
+                    self.schema.Connector.allowedResources.select(
+                        self.schema.ConnectorAllowedResources.schemas,
+                        self.schema.ConnectorAllowedResources.tables,
+                        self.schema.ConnectorAllowedResources.views,
+                    ),
+                    self.schema.Connector.createdAt,
+                    self.schema.Connector.updatedAt,
+                )
+            )
+        )
+        return self.client.execute(query).get("updateConnector")
+
+    def delete_connector(self, connector_id: str, workspace_id: str):
+        query = dsl_gql(
+            DSLMutation(
+                self.schema.Mutation.deleteConnector.args(
+                    connectorId=connector_id, workspaceId=workspace_id
+                )
+            )
+        )
+        result = self.client.execute(query).get("deleteConnector")
+        return result is True
+
+    def test_connector(self, connector_id: str, workspace_id: str):
+        query = dsl_gql(
+            DSLQuery(
+                self.schema.Query.testConnector.args(
+                    input={
+                        "connectorId": connector_id,
+                        "workspaceId": workspace_id,
+                    }
+                ).select(
+                    self.schema.ConnectorHealth.status,
+                    self.schema.ConnectorHealth.details,
+                    self.schema.ConnectorHealth.timestamp,
+                )
+            )
+        )
+        return self.client.execute(query).get("testConnector")
