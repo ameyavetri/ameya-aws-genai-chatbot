@@ -280,36 +280,26 @@ def test_update_connector_dynamodb_error(registry, mock_table):
 
 
 def test_delete_connector(registry, mock_table):
-    """Test deleting (soft-deleting) a connector with workspace_id (composite key)."""
+    """Test permanently deleting a connector with workspace_id (composite key)."""
     connector_id = "conn-123"
     workspace_id = "ws-123"
-    updated_item = {
-        "connector_id": connector_id,
-        "workspace_id": workspace_id,
-        "status": "inactive",
-        "updated_at": "2024-01-01T00:00:00Z",
-    }
-
-    mock_table.update_item.return_value = {"Attributes": updated_item}
 
     result = registry.delete_connector(connector_id, workspace_id)
 
     assert result is True
-    mock_table.update_item.assert_called_once()
-    call_kwargs = mock_table.update_item.call_args[1]
+    mock_table.delete_item.assert_called_once()
+    call_kwargs = mock_table.delete_item.call_args[1]
     assert call_kwargs["Key"]["connector_id"] == connector_id
     assert call_kwargs["Key"]["workspace_id"] == workspace_id
-    expr_vals = call_kwargs["ExpressionAttributeValues"]
-    assert "inactive" in expr_vals.values()
 
 
 def test_delete_connector_error_returns_false(registry, mock_table):
-    """Test that delete errors return False instead of raising."""
+    """Test that when connector is not found (get_connector raises), delete returns False."""
     connector_id = "conn-123"
-    workspace_id = "ws-123"
-    mock_table.update_item.side_effect = CommonError("Update failed")
+    # When workspace_id is None, delete_connector uses get_connector to resolve workspace_id
+    mock_table.query.return_value = {"Items": []}  # get_connector raises CommonError
 
-    result = registry.delete_connector(connector_id, workspace_id)
+    result = registry.delete_connector(connector_id, workspace_id=None)
 
     assert result is False
 

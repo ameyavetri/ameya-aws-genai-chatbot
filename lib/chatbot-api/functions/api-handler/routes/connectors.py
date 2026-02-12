@@ -24,6 +24,7 @@ from common.constant import (
     SAFE_SHORT_STR_VALIDATION,
     SAFE_SHORT_STR_VALIDATION_OPTIONAL,
 )
+import genai_core
 from genai_core.auth import UserPermissions
 from genai_core.types import CommonError
 
@@ -142,6 +143,18 @@ class TestConnectorInput(BaseModel):
     workspaceId: str = ID_FIELD_VALIDATION
 
 
+class ListConnectorFolderInput(BaseModel):
+    workspaceId: str = ID_FIELD_VALIDATION
+    connectorId: str = ID_FIELD_VALIDATION
+    path: Optional[str] = None
+
+
+class IngestFromConnectorInput(BaseModel):
+    workspaceId: str = ID_FIELD_VALIDATION
+    connectorId: str = ID_FIELD_VALIDATION
+    filePaths: List[str] = Field(..., min_length=1)
+
+
 # ---------------------------------------------------------------------------
 # GraphQL <-> Registry shape conversion
 # ---------------------------------------------------------------------------
@@ -219,6 +232,8 @@ def list_connectors(workspaceId: str, connectorType: Optional[str] = None):
     from genai_core.connectors import registry as connector_registry
 
     items = connector_registry.list_connectors(workspaceId, connector_type=connectorType)
+    # Only return active connectors (soft-deleted have status=inactive; hide Test temp connectors)
+    items = [c for c in items if c.get("status", "active") != "inactive"]
     duration_ms = (time.perf_counter() - start_ms) * 1000
     logger.info(
         "connector operation complete",
@@ -463,3 +478,74 @@ def test_connector(input: dict):
         "details": result.get("details"),
         "timestamp": result.get("timestamp"),
     }
+
+
+@router.resolver(field_name="listConnectorFolder")
+@tracer.capture_method
+@permissions.approved_roles(
+    [permissions.ADMIN_ROLE, permissions.WORKSPACES_MANAGER_ROLE]
+)
+def list_connector_folder(input: dict):
+    """List folder contents for a connector (Dropbox/SharePoint) for file-source browsing."""
+    req = ListConnectorFolderInput(**input)
+    _ensure_connectors_available()
+    from genai_core.connectors import connector_files
+
+    items = connector_files.list_folder(
+        connector_id=req.connectorId,
+        workspace_id=req.workspaceId,
+        path=req.path or None,
+    )
+    return [
+        {
+            "id": it.get("id", ""),
+            "name": it.get("name", ""),
+            "path": it.get("path", ""),
+            "type": it.get("type", "file"),
+            "size": it.get("size"),
+        }
+        for it in items
+    ]
+
+
+@router.resolver(field_name="ingestFromConnector")
+@tracer.capture_method
+@permissions.approved_roles(
+    [permissions.ADMIN_ROLE, permissions.WORKSPACES_MANAGER_ROLE]
+)
+def ingest_from_connector(input: dict):
+    """
+    Ingest selected files from a connector into the RAG pipeline.
+    Creates a document record per file and starts the connector file import workflow.
+    """
+    req = IngestFromConnectorInput(**input)
+    _ensure_connectors_available()
+    processing_bucket = os.environ.get("PROCESSING_BUCKET_NAME")
+    if not processing_bucket:
+        return {"documentIds": [], "errors": ["PROCESSING_BUCKET_NAME is not set"]}
+    document_ids: List[str] = []
+    errors: List[str] = []
+    for file_path in req.filePaths:
+        if not file_path or not file_path.strip():
+            errors.append("Empty file path")
+            continue
+        try:
+            doc_id = genai_core.documents.create_document_for_connector(
+                workspace_id=req.workspaceId,
+                connector_id=req.connectorId,
+                file_path=file_path.strip(),
+            )
+            object_key = f"{req.workspaceId}/{doc_id}/content"
+            genai_core.documents.start_connector_file_import_workflow(
+                workspace_id=req.workspaceId,
+                document_id=doc_id,
+                connector_id=req.connectorId,
+                file_path=file_path.strip(),
+                processing_bucket_name=processing_bucket,
+                processing_object_key=object_key,
+            )
+            document_ids.append(doc_id)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("ingest_from_connector file failed", path=file_path, exc_info=True)
+            errors.append(f"{file_path}: {e}")
+    return {"documentIds": document_ids, "errors": errors if errors else None}

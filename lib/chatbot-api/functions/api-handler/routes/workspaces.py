@@ -4,6 +4,7 @@ from common.constant import (
     SAFE_SHORT_STR_VALIDATION_OPTIONAL,
 )
 from common.validation import WorkspaceIdValidation
+import genai_core.embeddings
 import genai_core.types
 import genai_core.kendra
 import genai_core.bedrock_kb
@@ -169,34 +170,29 @@ def create_bedrock_kb_workspace(input: dict):
 
 def _create_workspace_aurora(request: CreateWorkspaceAuroraRequest, config: dict):
     workspace_name = request.name.strip()
-    embedding_models = config["rag"]["embeddingsModels"]
-    cross_encoder_models = config["rag"]["crossEncoderModels"]
+    rag = config.get("rag") or {}
+    cross_encoder_models = rag.get("crossEncoderModels") or []
 
-    embeddings_model = None
+    embeddings_model = genai_core.embeddings.get_embeddings_model(
+        genai_core.types.Provider(request.embeddingsModelProvider),
+        request.embeddingsModelName,
+    )
+    if embeddings_model is None:
+        raise genai_core.types.CommonError("Embeddings model not found")
+
     cross_encoder_model = None
-    for model in embedding_models:
-        if (
-            model["provider"] == request.embeddingsModelProvider
-            and model["name"] == request.embeddingsModelName
-        ):
-            embeddings_model = model
-            break
-
     for model in cross_encoder_models:
         if (
-            model["provider"] == request.crossEncoderModelProvider
-            and model["name"] == request.crossEncoderModelName
+            model.get("provider") == request.crossEncoderModelProvider
+            and model.get("name") == request.crossEncoderModelName
         ):
             cross_encoder_model = model
             break
 
-    if embeddings_model is None:
-        raise genai_core.types.CommonError("Embeddings model not found")
-
     if request.crossEncoderModelName is not None and cross_encoder_model is None:
         raise genai_core.types.CommonError("Cross encoder model not found")
 
-    embeddings_model_dimensions = embeddings_model["dimensions"]
+    embeddings_model_dimensions = embeddings_model.dimensions
 
     if len(request.languages) == 0 or len(request.languages) > 3:
         raise genai_core.types.CommonError("Invalid languages")
@@ -236,34 +232,29 @@ def _create_workspace_open_search(
     request: CreateWorkspaceOpenSearchRequest, config: dict
 ):
     workspace_name = request.name.strip()
-    embedding_models = config["rag"]["embeddingsModels"]
-    cross_encoder_models = config["rag"]["crossEncoderModels"]
+    rag = config.get("rag") or {}
+    cross_encoder_models = rag.get("crossEncoderModels") or []
 
-    embeddings_model = None
+    embeddings_model = genai_core.embeddings.get_embeddings_model(
+        genai_core.types.Provider(request.embeddingsModelProvider),
+        request.embeddingsModelName,
+    )
+    if embeddings_model is None:
+        raise genai_core.types.CommonError("Embeddings model not found")
+
     cross_encoder_model = None
-    for model in embedding_models:
-        if (
-            model["provider"] == request.embeddingsModelProvider
-            and model["name"] == request.embeddingsModelName
-        ):
-            embeddings_model = model
-            break
-
     for model in cross_encoder_models:
         if (
-            model["provider"] == request.crossEncoderModelProvider
-            and model["name"] == request.crossEncoderModelName
+            model.get("provider") == request.crossEncoderModelProvider
+            and model.get("name") == request.crossEncoderModelName
         ):
             cross_encoder_model = model
             break
 
-    if embeddings_model is None:
-        raise genai_core.types.CommonError("Embeddings model not found")
-
     if request.crossEncoderModelName is not None and cross_encoder_model is None:
         raise genai_core.types.CommonError("Cross encoder model not found")
 
-    embeddings_model_dimensions = embeddings_model["dimensions"]
+    embeddings_model_dimensions = embeddings_model.dimensions
 
     if len(request.languages) == 0 or len(request.languages) > 3:
         raise genai_core.types.CommonError("Invalid languages")

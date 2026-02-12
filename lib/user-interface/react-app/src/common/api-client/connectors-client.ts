@@ -1,5 +1,5 @@
 import { API } from "aws-amplify";
-import { GraphQLQuery, GraphQLResult } from "@aws-amplify/api";
+import { GraphQLResult } from "@aws-amplify/api";
 
 /**
  * Connector types matching the GraphQL schema (Part 4 API client).
@@ -191,6 +191,55 @@ export interface TestConnectorResult {
   errors?: unknown[];
 }
 
+/** Item returned by listConnectorFolder (Dropbox/SharePoint file source). */
+export interface ListConnectorFolderItem {
+  __typename?: "ListConnectorFolderItem";
+  id: string;
+  name: string;
+  path: string;
+  type: string;
+  size?: number | null;
+}
+
+export interface IngestFromConnectorResult {
+  __typename?: "IngestFromConnectorResult";
+  documentIds: string[];
+  errors?: (string | null)[] | null;
+}
+
+const listConnectorFolderQuery = /* GraphQL */ `
+  query ListConnectorFolder($input: ListConnectorFolderInput!) {
+    listConnectorFolder(input: $input) {
+      id
+      name
+      path
+      type
+      size
+      __typename
+    }
+  }
+`;
+
+const ingestFromConnectorMutation = /* GraphQL */ `
+  mutation IngestFromConnector($input: IngestFromConnectorInput!) {
+    ingestFromConnector(input: $input) {
+      documentIds
+      errors
+      __typename
+    }
+  }
+`;
+
+export interface ListConnectorFolderResult {
+  data?: { listConnectorFolder: ListConnectorFolderItem[] };
+  errors?: unknown[];
+}
+
+export interface IngestFromConnectorMutationResult {
+  data?: { ingestFromConnector: IngestFromConnectorResult };
+  errors?: unknown[];
+}
+
 export class ConnectorsClient {
   async listConnectors(
     workspaceId: string,
@@ -250,5 +299,31 @@ export class ConnectorsClient {
         input: { connectorId, workspaceId },
       },
     }) as Promise<GraphQLResult<TestConnectorResult["data"]>>;
+  }
+
+  async listConnectorFolder(
+    workspaceId: string,
+    connectorId: string,
+    path?: string | null
+  ): Promise<GraphQLResult<ListConnectorFolderResult["data"]>> {
+    return API.graphql({
+      query: listConnectorFolderQuery,
+      variables: {
+        input: { workspaceId, connectorId, path: path ?? null },
+      },
+    }) as Promise<GraphQLResult<ListConnectorFolderResult["data"]>>;
+  }
+
+  async ingestFromConnector(
+    workspaceId: string,
+    connectorId: string,
+    filePaths: string[]
+  ): Promise<GraphQLResult<IngestFromConnectorMutationResult["data"]>> {
+    return API.graphql({
+      query: ingestFromConnectorMutation,
+      variables: {
+        input: { workspaceId, connectorId, filePaths },
+      },
+    }) as Promise<GraphQLResult<IngestFromConnectorMutationResult["data"]>>;
   }
 }

@@ -26,7 +26,7 @@ import { Workspace } from "../../../API";
 export default function Connectors() {
   const onFollow = useOnFollow();
   const appContext = useContext(AppContext);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceOptions, setWorkspaceOptions] = useState<
     { value: string; label: string }[]
   >([]);
@@ -43,6 +43,9 @@ export default function Connectors() {
     details?: string | null;
   } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [connectorToDelete, setConnectorToDelete] = useState<Connector | null>(
+    null
+  );
 
   const connectorsEnabled = appContext?.config.connectors_enabled === true;
 
@@ -104,6 +107,46 @@ export default function Connectors() {
     await loadConnectors();
   };
 
+  const handleTestConnection = async (
+    input: CreateConnectorInput
+  ): Promise<{ status: string; details?: string | null }> => {
+    if (!appContext) return { status: "error", details: "Not configured" };
+    const apiClient = new ApiClient(appContext);
+    let createdId: string | null = null;
+    try {
+      const createResult = await apiClient.connectors.createConnector(input);
+      const created = (createResult as { data?: { createConnector?: Connector } })
+        .data?.createConnector;
+      if (!created?.id) {
+        return { status: "error", details: "Create did not return connector id" };
+      }
+      createdId = created.id;
+      const testResult = await apiClient.connectors.testConnector(
+        created.id,
+        input.workspaceId
+      );
+      const health = (testResult as { data?: { testConnector?: { status: string; details?: string | null } } })
+        .data?.testConnector;
+      return {
+        status: health?.status ?? "unknown",
+        details: health?.details ?? null,
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        details: Utils.getErrorMessage(error),
+      };
+    } finally {
+      if (createdId) {
+        try {
+          await apiClient.connectors.deleteConnector(createdId, input.workspaceId);
+        } catch {
+          // best-effort cleanup
+        }
+      }
+    }
+  };
+
   const handleTest = async (connector: Connector) => {
     if (!appContext || !selectedWorkspaceId) return;
     const apiClient = new ApiClient(appContext);
@@ -129,21 +172,46 @@ export default function Connectors() {
     }
   };
 
-  const handleDelete = async (connector: Connector) => {
-    if (!appContext || !selectedWorkspaceId) return;
+  const handleDeleteClick = (connector: Connector) => {
+    setConnectorToDelete(connector);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!appContext || !selectedWorkspaceId || !connectorToDelete) return;
+    const connector = connectorToDelete;
+    setConnectorToDelete(null);
     setDeletingId(connector.id);
+    setGlobalError(undefined);
     const apiClient = new ApiClient(appContext);
     try {
-      await apiClient.connectors.deleteConnector(
+      const result = await apiClient.connectors.deleteConnector(
         connector.id,
         selectedWorkspaceId
       );
+      const gqlResult = result as {
+        data?: { deleteConnector?: boolean };
+        errors?: unknown[];
+      };
+      if (gqlResult.errors?.length) {
+        throw new Error(
+          (gqlResult.errors as { message?: string }[])?.[0]?.message ??
+            "Delete failed"
+        );
+      }
+      if (gqlResult.data?.deleteConnector !== true) {
+        throw new Error("Delete did not succeed");
+      }
+      setConnectors((prev) => prev.filter((c) => c.id !== connector.id));
       await loadConnectors();
     } catch (error) {
       setGlobalError(Utils.getErrorMessage(error));
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleDeleteDismiss = () => {
+    setConnectorToDelete(null);
   };
 
   const columnDefinitions = [
@@ -191,15 +259,15 @@ export default function Connectors() {
       cell: (item: Connector) => (
         <SpaceBetween direction="horizontal" size="xs">
           <Button
-            small
+            variant="normal"
             onClick={() => handleTest(item)}
             disabled={deletingId === item.id}
           >
             Test
           </Button>
           <Button
-            small
-            onClick={() => handleDelete(item)}
+            variant="normal"
+            onClick={() => handleDeleteClick(item)}
             disabled={deletingId === item.id}
             loading={deletingId === item.id}
           >
@@ -248,6 +316,7 @@ export default function Connectors() {
             workspaceOptions={workspaceOptions}
             onDismiss={() => setShowCreateModal(false)}
             onSubmit={handleCreateSubmit}
+            onTestConnection={handleTestConnection}
           />
 
           {testResult && (
@@ -283,6 +352,35 @@ export default function Connectors() {
                   </div>
                 )}
               </SpaceBetween>
+            </Modal>
+          )}
+
+          {connectorToDelete && (
+            <Modal
+              visible={true}
+              onDismiss={handleDeleteDismiss}
+              header="Delete connector"
+              footer={
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button variant="link" onClick={handleDeleteDismiss}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleDeleteConfirm}
+                    loading={deletingId === connectorToDelete.id}
+                    disabled={deletingId === connectorToDelete.id}
+                  >
+                    Delete
+                  </Button>
+                </SpaceBetween>
+              }
+            >
+              <p>
+                Are you sure you want to delete the connector{" "}
+                <strong>{connectorToDelete.name}</strong>? This will remove it
+                from the database and cannot be undone.
+              </p>
             </Modal>
           )}
 

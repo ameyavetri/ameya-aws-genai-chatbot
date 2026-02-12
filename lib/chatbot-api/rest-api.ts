@@ -113,6 +113,8 @@ export class ApiResolvers extends Construct {
               ?.stateMachineArn ?? "",
           FILE_IMPORT_WORKFLOW_ARN:
             props.ragEngines?.fileImportWorkflow?.stateMachineArn ?? "",
+          CONNECTOR_FILE_IMPORT_WORKFLOW_ARN:
+            props.ragEngines?.connectorFileImportWorkflow?.stateMachineArn ?? "",
           WEBSITE_CRAWLING_WORKFLOW_ARN:
             props.ragEngines?.websiteCrawlingWorkflow?.stateMachineArn ?? "",
           OPEN_SEARCH_COLLECTION_ENDPOINT:

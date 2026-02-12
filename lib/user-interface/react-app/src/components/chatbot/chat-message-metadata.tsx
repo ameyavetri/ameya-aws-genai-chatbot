@@ -144,13 +144,13 @@ export function ChatMessageMetadata({
           />
         </>
       )}
-      {(metadata.connector_sources as ConnectorSource[] | undefined)?.length >
+      {((metadata?.connector_sources as ConnectorSource[] | undefined)?.length ?? 0) >
         0 && (
         <div style={{ marginTop: 12 }}>
           <strong>Sources</strong>
           <ul style={{ marginTop: 4, paddingLeft: 20 }}>
-            {(metadata.connector_sources as ConnectorSource[]).map(
-              (s, i) => (
+            {(metadata?.connector_sources ?? []).map(
+              (s: ConnectorSource, i: number) => (
                 <li key={s.connector_id ?? i}>
                   From: {s.connector_name ?? s.connector_type ?? "Connector"}
                   {s.citation_count != null && (
@@ -162,13 +162,13 @@ export function ChatMessageMetadata({
           </ul>
         </div>
       )}
-      {(metadata.connector_citations as ConnectorCitation[] | undefined)
-        ?.length > 0 && (
+      {((metadata?.connector_citations as ConnectorCitation[] | undefined)
+        ?.length ?? 0) > 0 && (
         <div style={{ marginTop: 12 }}>
           <strong>References</strong>
           <ol style={{ marginTop: 4, paddingLeft: 20 }}>
-            {(metadata.connector_citations as ConnectorCitation[]).map(
-              (c, i) => (
+            {(metadata?.connector_citations ?? []).map(
+              (c: ConnectorCitation, i: number) => (
                 <li key={i} style={{ marginBottom: 4 }}>
                   {c.url ? (
                     <Link href={c.url} external>

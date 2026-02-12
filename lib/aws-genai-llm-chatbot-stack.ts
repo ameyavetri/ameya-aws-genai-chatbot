@@ -50,11 +50,22 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
       shared,
     });
 
+    // Connector tables (created early so RagEngines can enable connector file import)
+    const connectorTables = props.config.connectors?.enabled
+      ? new ConnectorDynamoDBTables(this, "ConnectorDynamoDBTables", {
+          prefix: props.config.prefix,
+          kmsKey: shared.kmsKey,
+          retainOnDelete: props.config.retainOnDelete,
+          deletionProtection: props.config.ddbDeletionProtection,
+        })
+      : undefined;
+
     let ragEngines: RagEngines | undefined = undefined;
     if (props.config.rag.enabled) {
       ragEngines = new RagEngines(this, "RagEngines", {
         shared,
         config: props.config,
+        connectorsTable: connectorTables?.connectorsTable,
       });
     }
 
@@ -234,20 +245,8 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
       uploadBucket: ragEngines?.uploadBucket,
     });
 
-    // Connector Infrastructure (conditional)
-    if (props.config.connectors?.enabled) {
-      // Connector DynamoDB Tables
-      const connectorTables = new ConnectorDynamoDBTables(
-        this,
-        "ConnectorDynamoDBTables",
-        {
-          prefix: props.config.prefix,
-          kmsKey: shared.kmsKey,
-          retainOnDelete: props.config.retainOnDelete,
-          deletionProtection: props.config.ddbDeletionProtection,
-        }
-      );
-
+    // Connector Infrastructure (conditional) — connectorTables created above
+    if (props.config.connectors?.enabled && connectorTables) {
       // Connector Gateway (ECS Fargate + ALB) only when at least one connector type is enabled.
       // An ALB listener requires at least one target group; with zero services we would create an invalid listener.
       const anyConnectorTypeEnabled =
@@ -279,7 +278,6 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
 
         // Grant api-handler permission for connector credentials (Part 7.2)
         // DescribeSecret: validate ARNs; CreateSecret/PutSecretValue/DeleteSecret: create/update/delete connector secrets
-        // GetSecretValue is NOT granted here (only to ECS task roles for MCP servers)
         apiHandler.addToRolePolicy(
           new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
@@ -293,6 +291,20 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
             resources: ["*"],
           })
         );
+        // GetSecretValue on connector secrets only: required for list_folder / fetch file in Add Data (Dropbox/SharePoint)
+        apiHandler.addToRolePolicy(
+          new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: ["secretsmanager:GetSecretValue"],
+            resources: [
+              `arn:${cdk.Aws.PARTITION}:secretsmanager:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:secret:genai-connector-*`,
+            ],
+          })
+        );
+
+        if (ragEngines?.connectorFileImportWorkflow) {
+          ragEngines.connectorFileImportWorkflow.grantStartExecution(apiHandler);
+        }
       }
 
       // Wire request-handler (LangChain Lambda) to connectors table so chat flow can use connector context

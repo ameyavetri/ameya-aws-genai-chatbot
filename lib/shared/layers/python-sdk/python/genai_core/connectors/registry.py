@@ -157,19 +157,26 @@ class ConnectorRegistry:
     def delete_connector(
         self, connector_id: str, workspace_id: Optional[str] = None
     ) -> bool:
-        """Soft-delete connector by marking status=inactive.
+        """Permanently delete the connector record from the database.
 
         When workspace_id is None, the connector is first fetched by query
-        and its workspace_id is used for the update.
+        and its workspace_id is used for the delete.
         """
         try:
-            self.update_connector(
-                connector_id, {"status": "inactive"}, workspace_id=workspace_id
-            )
+            key: Dict[str, str] = {"connector_id": connector_id}
+            if workspace_id is not None:
+                key["workspace_id"] = workspace_id
+            else:
+                existing = self.get_connector(connector_id)
+                key["workspace_id"] = existing["workspace_id"]
+
+            self._table.delete_item(Key=key)
         except CommonError:
             # Surface deletion issues to caller as False rather than raising,
             # since this is often invoked from admin workflows.
             return False
+        except (BotoCoreError, ClientError) as exc:
+            raise CommonError(f"Failed to delete connector: {exc}") from exc
         return True
 
     def get_connectors_for_application(

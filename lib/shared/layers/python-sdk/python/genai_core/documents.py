@@ -22,6 +22,9 @@ DOCUMENTS_BY_COMPOUND_KEY_INDEX_NAME = os.environ.get(
     "DOCUMENTS_BY_COMPOUND_KEY_INDEX_NAME"
 )
 FILE_IMPORT_WORKFLOW_ARN = os.environ.get("FILE_IMPORT_WORKFLOW_ARN")
+CONNECTOR_FILE_IMPORT_WORKFLOW_ARN = os.environ.get(
+    "CONNECTOR_FILE_IMPORT_WORKFLOW_ARN"
+)
 WEBSITE_CRAWLING_WORKFLOW_ARN = os.environ.get("WEBSITE_CRAWLING_WORKFLOW_ARN")
 DEFAULT_KENDRA_S3_DATA_SOURCE_BUCKET_NAME = os.environ.get(
     "DEFAULT_KENDRA_S3_DATA_SOURCE_BUCKET_NAME"
@@ -391,6 +394,101 @@ def create_document(
         "workspace_id": workspace_id,
         "document_id": document_id,
     }
+
+
+def create_document_for_connector(
+    workspace_id: str,
+    connector_id: str,
+    file_path: str,
+    title: Optional[str] = None,
+    size_in_bytes: int = 0,
+) -> str:
+    """
+    Create a document record for a file that will be ingested from a connector
+    (Dropbox/SharePoint). Does not upload content or start S3 workflow; caller
+    must start the connector file import workflow.
+    """
+    workspace = genai_core.workspaces.get_workspace(workspace_id)
+    if not workspace:
+        raise genai_core.types.CommonError("Workspace not found")
+    if workspace.get("engine") == "kendra":
+        raise genai_core.types.CommonError(
+            "Connector file ingest is not supported for Kendra workspaces"
+        )
+    timestamp = _get_timestamp()
+    document_id = str(uuid.uuid4())
+    path = file_path.strip().strip("/") or file_path
+    title = title or path.split("/")[-1] or "connector-file"
+    compound_sort_key = f"file/{path}"
+    document = {
+        "format_version": 1,
+        "workspace_id": workspace_id,
+        "document_id": document_id,
+        "document_type": "file",
+        "document_sub_type": None,
+        "sub_documents": 0,
+        "compound_sort_key": compound_sort_key,
+        "status": "submitted",
+        "title": title,
+        "path": path,
+        "size_in_bytes": size_in_bytes,
+        "vectors": 0,
+        "errors": [],
+        "created_at": timestamp,
+        "updated_at": timestamp,
+        "connector_id": connector_id,
+    }
+    documents_table.put_item(Item=document)
+    workspaces_table.update_item(
+        Key={"workspace_id": workspace_id, "object_type": WORKSPACE_OBJECT_TYPE},
+        UpdateExpression="ADD size_in_bytes :inc, documents :docInc SET updated_at=:ts",
+        ExpressionAttributeValues={
+            ":inc": size_in_bytes,
+            ":docInc": 1,
+            ":ts": timestamp,
+        },
+    )
+    logger.info(
+        "create_document_for_connector",
+        workspace_id=workspace_id,
+        document_id=document_id,
+        connector_id=connector_id,
+        path=path,
+    )
+    return document_id
+
+
+def start_connector_file_import_workflow(
+    workspace_id: str,
+    document_id: str,
+    connector_id: str,
+    file_path: str,
+    processing_bucket_name: str,
+    processing_object_key: str,
+) -> None:
+    """Start the Step Function that imports a single file from a connector."""
+    if not CONNECTOR_FILE_IMPORT_WORKFLOW_ARN:
+        raise genai_core.types.CommonError(
+            "CONNECTOR_FILE_IMPORT_WORKFLOW_ARN is not configured"
+        )
+    input_payload = {
+        "workspace_id": workspace_id,
+        "document_id": document_id,
+        "connector_id": connector_id,
+        "file_path": file_path,
+        "processing_bucket_name": processing_bucket_name,
+        "processing_object_key": processing_object_key,
+    }
+    sfn_client.start_execution(
+        stateMachineArn=CONNECTOR_FILE_IMPORT_WORKFLOW_ARN,
+        input=json.dumps(input_payload),
+    )
+    logger.info(
+        "start_connector_file_import_workflow",
+        workspace_id=workspace_id,
+        document_id=document_id,
+        connector_id=connector_id,
+    )
 
 
 def update_document(workspace_id: str, document_id: str, document_type: str, **kwargs):

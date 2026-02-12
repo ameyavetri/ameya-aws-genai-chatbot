@@ -142,7 +142,10 @@ Set **connectors.enabled** and the per-type flags in **config.json** (see [Confi
 ### 3. How to create a Dropbox connector
 
 - **Type:** Dropbox.
-- **Secret shape (JSON):** `{ "access_token": "YOUR_DROPBOX_ACCESS_TOKEN" }` or `{ "access_token_v2": "..." }`. The MCP server reads these keys. You can paste this JSON in the **Credentials** field when creating the connector (the app creates the secret), or create the secret in Secrets Manager first and enter its ARN.
+- **Secret shape (JSON):**
+  - **Recommended (auto-refresh, long-lived):** `{ "app_key": "YOUR_APP_KEY", "app_secret": "YOUR_APP_SECRET", "refresh_token": "YOUR_REFRESH_TOKEN" }`. Create an app at [Dropbox Developers](https://www.dropbox.com/developers/apps), use OAuth2 with `token_access_type=offline` to obtain a refresh token. The connector auto-refreshes access tokens and never expires.
+  - **Legacy (short-lived, ~4 hours):** `{ "access_token": "YOUR_ACCESS_TOKEN" }`. Generate from the App Console; will expire and require manual update.
+- You can paste this JSON in the **Credentials** field when creating the connector (the app creates the secret), or create the secret in Secrets Manager first and enter its ARN.
 
 ### 4. How to create a SharePoint connector
 
@@ -213,15 +216,25 @@ In AWS Console: **Secrets Manager → Store a new secret → Other type of secre
 
 **Dropbox**
 
-Create a secret with your Dropbox access token:
+Create a secret with your Dropbox credentials. Two formats supported:
 
+**Recommended (refresh token, auto-refresh):**
+```json
+{
+  "app_key": "YOUR_APP_KEY",
+  "app_secret": "YOUR_APP_SECRET",
+  "refresh_token": "YOUR_REFRESH_TOKEN"
+}
+```
+
+**Legacy (access token, expires ~4 hours):**
 ```json
 {
   "access_token": "YOUR_DROPBOX_ACCESS_TOKEN"
 }
 ```
 
-Or, if using a different key: `"access_token_v2": "..."`. The Dropbox MCP server looks for `access_token` or `access_token_v2`. Note the **Secret ARN**.
+Obtain a refresh token via OAuth2 with `token_access_type=offline` in the authorize URL. Note the **Secret ARN**.
 
 ### 2.2 Connector Gateway URL (endpoint for registry)
 

@@ -481,6 +481,32 @@ input TestConnectorInput {
   workspaceId: String!
 }
 
+# List folder / ingest from connector (Dropbox, SharePoint as file source)
+type ListConnectorFolderItem {
+  id: String!
+  name: String!
+  path: String!
+  type: String!
+  size: Int
+}
+
+input ListConnectorFolderInput {
+  workspaceId: String!
+  connectorId: String!
+  path: String
+}
+
+input IngestFromConnectorInput {
+  workspaceId: String!
+  connectorId: String!
+  filePaths: [String!]!
+}
+
+type IngestFromConnectorResult {
+  documentIds: [String!]!
+  errors: [String!]
+}
+
 type Mutation {
   createKendraWorkspace(input: CreateWorkspaceKendraInput!): Workspace!
     @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
@@ -529,6 +555,8 @@ type Mutation {
   updateConnector(input: UpdateConnectorInput!): Connector!
     @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
   deleteConnector(connectorId: String!, workspaceId: String!): Boolean
+    @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
+  ingestFromConnector(input: IngestFromConnectorInput!): IngestFromConnectorResult!
     @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
 }
 
@@ -579,6 +607,8 @@ type Query {
   getConnector(connectorId: String!, workspaceId: String!): Connector
     @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
   testConnector(input: TestConnectorInput!): ConnectorHealth!
+    @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
+  listConnectorFolder(input: ListConnectorFolderInput!): [ListConnectorFolderItem!]!
     @aws_cognito_user_pools(cognito_groups: ["admin", "workspace_manager"])
 }
 

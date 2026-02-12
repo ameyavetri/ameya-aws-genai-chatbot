@@ -11,6 +11,7 @@ import * as aws_ecr_assets from "aws-cdk-lib/aws-ecr-assets";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as sagemaker from "aws-cdk-lib/aws-sagemaker";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import { NagSuppressions } from "cdk-nag";
 import { AURORA_DB_USERS } from "../aurora-pgvector";
 
@@ -23,6 +24,8 @@ export interface FileImportBatchJobProps {
   readonly auroraDatabase?: rds.DatabaseCluster;
   readonly sageMakerRagModelsEndpoint?: sagemaker.CfnEndpoint;
   readonly openSearchVector?: OpenSearchVector;
+  /** When set, batch job can import from connectors (Dropbox/SharePoint). */
+  readonly connectorsTable?: dynamodb.Table;
 }
 
 export class FileImportBatchJob extends Construct {
@@ -96,6 +99,11 @@ export class FileImportBatchJob extends Construct {
             props.sageMakerRagModelsEndpoint?.attrEndpointName ?? "",
           OPEN_SEARCH_COLLECTION_ENDPOINT:
             props.openSearchVector?.openSearchCollectionEndpoint ?? "",
+          ...(props.connectorsTable
+            ? {
+                CONNECTORS_TABLE_NAME: props.connectorsTable.tableName,
+              }
+            : {}),
         },
       }
     );
@@ -161,6 +169,18 @@ export class FileImportBatchJob extends Construct {
         new iam.PolicyStatement({
           actions: ["sagemaker:InvokeEndpoint"],
           resources: [props.sageMakerRagModelsEndpoint.ref],
+        })
+      );
+    }
+
+    if (props.connectorsTable) {
+      props.connectorsTable.grantReadData(fileImportJobRole);
+      fileImportJobRole.addToPolicy(
+        new iam.PolicyStatement({
+          actions: ["secretsmanager:GetSecretValue"],
+          resources: [
+            `arn:${cdk.Aws.PARTITION}:secretsmanager:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:secret:genai-connector-*`,
+          ],
         })
       );
     }

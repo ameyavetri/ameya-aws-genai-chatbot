@@ -110,9 +110,6 @@ export default function NavigationPanel() {
       });
     }
 
-      // Documentation link disabled (was: https://aws-samples.github.io/aws-genai-llm-chatbot/)
-    }
-
     return items;
   });
 
