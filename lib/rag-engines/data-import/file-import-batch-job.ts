@@ -85,7 +85,10 @@ export class FileImportBatchJob extends Construct {
           API_KEYS_SECRETS_ARN: props.shared.apiKeysSecret.secretArn,
           AURORA_DB_USER: AURORA_DB_USERS.WRITE,
           AURORA_DB_HOST: props.auroraDatabase?.clusterEndpoint?.hostname ?? "",
-          AURORA_DB_PORT: props.auroraDatabase?.clusterEndpoint?.port + "",
+          AURORA_DB_PORT:
+            props.auroraDatabase?.clusterEndpoint?.port != null
+              ? String(props.auroraDatabase.clusterEndpoint.port)
+              : "5432",
           PROCESSING_BUCKET_NAME: props.processingBucket.bucketName,
           WORKSPACES_TABLE_NAME:
             props.ragDynamoDBTables.workspacesTable.tableName,
@@ -191,6 +194,7 @@ export class FileImportBatchJob extends Construct {
           actions: [
             "bedrock:InvokeModel",
             "bedrock:InvokeModelWithResponseStream",
+            "bedrock:ListFoundationModels",
           ],
           resources: ["arn:aws:bedrock:*"],
         })

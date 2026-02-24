@@ -31,6 +31,7 @@ const defaults: ApplicationManageInput = {
   systemPrompt: "",
   systemPromptRag: "",
   condenseSystemPrompt: "",
+  intentPrompts: null,
   selectedRoles: [],
   allowImageInput: false,
   allowVideoInput: false,
@@ -90,6 +91,7 @@ export default function ManageApplication() {
             systemPrompt: application.systemPrompt || "",
             systemPromptRag: application.systemPromptRag || "",
             condenseSystemPrompt: application.condenseSystemPrompt || "",
+            intentPrompts: application.intentPrompts ?? null,
             selectedRoles: OptionsHelper.getRolesSelectOptions(
               (application.roles ?? []).filter((r): r is string => r != null)
             ),
@@ -149,6 +151,16 @@ export default function ManageApplication() {
         errors.condenseSystemPrompt =
           "Condense system prompt cannot have special characters";
       }
+      if (form.intentPrompts && form.intentPrompts.trim().length > 0) {
+        try {
+          const parsed = JSON.parse(form.intentPrompts);
+          if (typeof parsed !== "object" || parsed === null) {
+            errors.intentPrompts = "Intent prompts must be a JSON object";
+          }
+        } catch {
+          errors.intentPrompts = "Intent prompts must be valid JSON";
+        }
+      }
       return errors;
     },
   });
@@ -178,6 +190,7 @@ export default function ManageApplication() {
         systemPrompt: application.systemPrompt ?? "",
         systemPromptRag: application.systemPromptRag ?? "",
         condenseSystemPrompt: application.condenseSystemPrompt ?? "",
+        intentPrompts: application.intentPrompts ?? null,
         selectedRoles: OptionsHelper.getRolesSelectOptions(
           application.roles.filter((r): r is string => r != null)
         ),
@@ -211,6 +224,7 @@ export default function ManageApplication() {
       systemPrompt: data.systemPrompt ?? "",
       systemPromptRag: data.systemPromptRag ?? "",
       condenseSystemPrompt: data.condenseSystemPrompt ?? "",
+      intentPrompts: data.intentPrompts ?? null,
       roles: data.selectedRoles.map((x) => x.value ?? ""),
       allowImageInput: data.allowImageInput ?? false,
       allowVideoInput: data.allowVideoInput ?? false,
@@ -259,6 +273,7 @@ export default function ManageApplication() {
       systemPrompt: data.systemPrompt ?? "",
       systemPromptRag: data.systemPromptRag ?? "",
       condenseSystemPrompt: data.condenseSystemPrompt ?? "",
+      intentPrompts: data.intentPrompts ?? null,
       roles: data.selectedRoles.map((x) => x.value ?? ""),
       allowImageInput: data.allowImageInput ?? false,
       allowVideoInput: data.allowVideoInput ?? false,

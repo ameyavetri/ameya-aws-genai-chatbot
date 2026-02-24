@@ -305,6 +305,21 @@ export default function ApplicationForm(props: ApplicationFormProps) {
                   />
                 </FormField>
                 <FormField
+                  label="Intent Prompts (JSON)"
+                  description="Optional JSON mapping intent keys (e.g. general, job_posting_creation, resume_assessment) to objects with system_prompt."
+                  errorText={props.errors.intentPrompts}
+                >
+                  <Textarea
+                    placeholder='{"general": {"system_prompt": "..."}}'
+                    rows={6}
+                    disabled={props.submitting}
+                    value={props.data.intentPrompts ?? ""}
+                    onChange={({ detail: { value } }) =>
+                      props.onChange({ intentPrompts: value || null })
+                    }
+                  />
+                </FormField>
+                <FormField
                   label="Image Input"
                   description="If supported by the model, an user can upload images to a session allowing the model to analyze them."
                   errorText={props.errors.allowImageInput}

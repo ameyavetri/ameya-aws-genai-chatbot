@@ -5,7 +5,7 @@
 | GraphQL Operation | Field | Handler File |
 |-------------------|-------|--------------|
 | Query | `checkHealth` | `lib/chatbot-api/functions/api-handler/routes/health.py` |
-| Query | `getUploadFileURL`, `listWorkspaces`, `createAuroraWorkspace`, etc. | `lib/chatbot-api/functions/api-handler/routes/rag.py`, `workspaces.py`, `documents.py`, `embeddings.py`, `cross_encoders.py`, `kendra.py`, `bedrock_kb.py`, `semantic_search.py`, `roles.py`, `applications.py`, `connectors.py` |
+| Query | `getUploadFileURL`, `listWorkspaces`, `createAuroraWorkspace`, `listApplications`, `getApplication`, etc. | `lib/chatbot-api/functions/api-handler/routes/rag.py`, `workspaces.py`, `documents.py`, `embeddings.py`, `cross_encoders.py`, `kendra.py`, `bedrock_kb.py`, `semantic_search.py`, `roles.py`, `applications.py` (includes CRUD + `systemPrompt`, `intentPrompts`), `connectors.py` |
 | Query | `listModels`, `listAgents` | `lib/chatbot-api/functions/api-handler/routes/models.py`, `agents.py` |
 | Query | `listSessions`, `getSession`, `deleteSession` | `lib/chatbot-api/functions/api-handler/routes/sessions.py` |
 | Query | `listConnectors`, `getConnector`, `testConnector`, `listConnectorFolder` | `lib/chatbot-api/functions/api-handler/routes/connectors.py` |
@@ -27,7 +27,7 @@
 | **ChatBotApi** | AppSync GraphQL API, WAF, resolvers, realtime (sendQuery, publishResponse, subscriptions) | `lib/chatbot-api/index.ts`, `lib/chatbot-api/rest-api.ts`, `lib/chatbot-api/websocket-api.ts`, `lib/chatbot-api/appsync-ws.ts`, `lib/chatbot-api/schema/schema.graphql` | `graphqlApi`, `messagesTopic`, `outBoundQueue`, `sessionsTable`, `applicationTable`, `filesBucket` | Shared, RagEngines, Authentication, Models | All Query/Mutation fields (except sendQuery, publishResponse) → api-handler |
 | **api-handler** | GraphQL resolver Lambda; routes by `fieldName` to route modules | `lib/chatbot-api/functions/api-handler/index.py`, `lib/chatbot-api/functions/api-handler/routes/*.py` | AppSyncResolver `handler(event, context)` | genai_core, aws_lambda_powertools, pydantic | `POWERTOOLS_SERVICE_NAME`, `LOG_LEVEL`; VPC for Aurora/OpenSearch |
 | **Realtime (sendQuery, publishResponse, receiveMessages)** | sendQuery → SNS; SQS → outgoing-message → publishResponse; subscriptions | `lib/chatbot-api/functions/resolvers/send-query-lambda-resolver/index.py`, `lib/chatbot-api/functions/outgoing-message-appsync/index.ts`, `lib/chatbot-api/functions/resolvers/*.js` | GraphQL mutations `sendQuery`, `publishResponse`; Subscription `receiveMessages` | SNS, SQS, AppSync | Application-level auth in sendQuery (`applicationId` → Roles check) |
-| **LangChain Interface** | Consumes SNS (direction=IN, modelInterface=langchain); RAG, connectors, LLM | `lib/model-interfaces/langchain/index.ts`, `lib/model-interfaces/langchain/functions/request-handler/index.py` | `ingestionQueue`, `requestHandler` | genai_core, LangChain, rag-engines, Bedrock/SageMaker/Nexus | 15 min timeout, 1024 MB |
+| **LangChain Interface** | Consumes SNS (direction=IN, modelInterface=langchain); intent detection, prompt resolution, RAG, connectors, LLM | `lib/model-interfaces/langchain/index.ts`, `lib/model-interfaces/langchain/functions/request-handler/index.py`, `utils/intent/`, `utils/prompt_resolver/` | `ingestionQueue`, `requestHandler` | genai_core, LangChain, rag-engines, Bedrock/SageMaker/Nexus | 15 min timeout, 1024 MB |
 | **Bedrock Agents Interface** | Consumes SNS (modelInterface=agent); Bedrock Agent | `lib/model-interfaces/bedrock-agents/index.ts` | `ingestionQueue`, `requestHandler` | Bedrock Agent API | Config `bedrock.agent.enabled` |
 | **Idefics Interface** | Multimodal (images); SageMaker IDEFICS | `lib/model-interfaces/idefics/index.ts` | `ingestionQueue`, `requestHandler` | SageMaker, S3 | `model.interface === ModelInterface.MultiModal` |
 | **WebSearch Interface** | Web/hybrid source mode; invokes WebSearch Lambda | `lib/model-interfaces/websearch/index.ts` | `ingestionQueue`, `webSearchLambda` | Secrets Manager | Filter: `sourceMode` in [web, hybrid] |
@@ -37,6 +37,33 @@
 | **Models** | SageMaker endpoints, Bedrock/Nexus config, SSM models parameter | `lib/models/index.ts` | `models`, `modelsParameter` | Shared, CDK | Driven by `config.llms.sagemaker`, `config.bedrock`, `config.nexus` |
 | **UserInterface** | React app build, S3/CloudFront or private ALB deployment, aws-exports.json | `lib/user-interface/index.ts`, `lib/user-interface/react-app/`, `lib/user-interface/public-website.ts`, `lib/user-interface/private-website.ts` | `publishedDomain`, `cloudFrontDistribution`, `privateWebsite` | Shared, ChatBotApi, Authentication | `aws-exports.json` generated at deploy time |
 | **Monitoring** | CloudWatch Dashboard, alarms, composite alarm SNS | `lib/monitoring/index.ts` | `compositeAlarmTopic` | cdk-monitoring-constructs | `advancedMonitoring` enables X-Ray, extra alarms |
+
+---
+
+## Intent Detection and Prompt Templates (Recent Features)
+
+### Intent Detection
+
+The LangChain request-handler classifies each user message into one of: `general`, `qa_mode`, `resume_assessment`, `job_posting_creation`.
+
+| Classifier | When Used | Config | File |
+|------------|-----------|--------|------|
+| **RuleClassifier** | Default (`INTENT_CLASSIFIER_ENABLED` false) | Pattern matching on query text, workspace context, session history | `lib/model-interfaces/langchain/functions/request-handler/utils/intent/rule_classifier.py`, `utils/intent_detector.py` |
+| **LLMClassifier** | When `INTENT_CLASSIFIER_ENABLED=true` | Uses Bedrock (`INTENT_CLASSIFIER_MODEL`, default Claude Haiku) | `lib/model-interfaces/langchain/functions/request-handler/utils/intent/llm_classifier.py` |
+
+Valid intents come from Application `intentPrompts` JSON keys if present; otherwise defaults: `["general", "job_posting_creation", "resume_assessment", "qa_mode"]`.
+
+### Prompt Resolution
+
+Prompts are resolved in order (first non-empty wins):
+
+1. **IntentPrompts** (Application): JSON in `intentPrompts` field, e.g. `{"general": {"system_prompt": "..."}, "resume_assessment": {...}}`
+2. **STAFFING_PROMPTS** (code): Built-in templates in `lib/model-interfaces/langchain/functions/request-handler/adapters/shared/prompts/staffing_prompts.py`
+3. **Application system prompts**: `systemPrompt`, `systemPromptRag`, `condenseSystemPrompt` from the application record
+
+Admins configure these via **Admin → Applications → Create/Edit Application → Application Configuration** (Model settings expandable section). Prompt templates improve response quality consistently across Bedrock, SageMaker, and Nexus models.
+
+**Files:** `lib/model-interfaces/langchain/functions/request-handler/utils/prompt_resolver/intent_resolver.py`, `lib/chatbot-api/functions/api-handler/routes/applications.py`, `lib/user-interface/react-app/src/pages/admin/manage-application/application-form.tsx`
 
 ---
 
@@ -72,6 +99,8 @@
 |--------|-------|----------|-------|------------------------|--------------|
 | Add RAG engine or retrieval change | `lib/model-interfaces/langchain/functions/request-handler/index.py` | `resolve_context_for_prompt`; workspace/document lookups via genai_core | tests/model-interfaces/ | Don't change prompt structure without versioning | Session history format (DynamoDBChatMessageHistory) |
 | Add connector context | `lib/model-interfaces/langchain/functions/request-handler/index.py` | Use `connector_orchestrator.execute_query`; map to `connector_items` | — | Connector schema in DynamoDB | CONNECTORS_TABLE_NAME env |
+| Change intent detection | `lib/model-interfaces/langchain/functions/request-handler/utils/intent/` | RuleClassifier (default) or LLMClassifier when `INTENT_CLASSIFIER_ENABLED=true`; valid intents from Application `intentPrompts` or default list | — | New intents additive; fallback to `general` | Intent value format used by prompt resolver |
+| Add/change prompt templates | `lib/model-interfaces/langchain/functions/request-handler/utils/prompt_resolver/`, `adapters/shared/prompts/staffing_prompts.py` | Resolution order: IntentPrompts (Application) → STAFFING_PROMPTS → application system prompts | — | New prompts additive; IntentPrompts keys override | `system_prompt` / `systemPrompt` key in intent config |
 | Change LLM provider behavior | `lib/shared/layers/python-sdk/python/genai_core/model_providers/`, `lib/model-interfaces/langchain/` | Registry pattern; Bedrock/SageMaker/Nexus clients | — | Model name format `provider::modelName` | — |
 
 ### RAG Engines

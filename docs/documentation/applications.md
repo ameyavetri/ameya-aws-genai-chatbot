@@ -1,6 +1,8 @@
 # Applications
 
-An application is a pre-configured chatbot which could be embedded to a website. Admin users can define applications by selecting a model, model settings, workspace, and system prompts. Configured applications are then available for regular users based on their assigned role, allowing controlled access to pre-configured chat experiences. 
+An application is a pre-configured chatbot which could be embedded to a website. Admin users can define applications by selecting a model, model settings, workspace, and system prompts. Configured applications are then available for regular users based on their assigned role, allowing controlled access to pre-configured chat experiences.
+
+For models that support document input (e.g. OpenAI GPT models, certain Bedrock models), the "Allow Document Input" toggle can be enabled when creating or editing an application. When enabled, end users can upload documents directly in the chat interface for the model to process. 
 
 Roles determine which applications a user can access - for example, a "customer support" role may only be able to use applications tailored for handling support inquiries from users. Admin and workspace_manager roles are created during deployment. Additional roles can be created by creating [Cognito groups](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-user-groups.html). Applications can then be assigned to one or more roles restricting what model and workspace an end user can use.
 

@@ -32,6 +32,8 @@ The **AWS GenAI LLM Chatbot** is an enterprise-ready generative AI solution with
 - RAG: Aurora pgvector, OpenSearch Serverless, Kendra, Bedrock Knowledge Base
 - Real-time streaming via AppSync GraphQL subscriptions
 - Connectors (MCP): Azure SQL, SharePoint, Dropbox; ECS-based Connector Gateway
+- **Intent detection**: Classifies user queries (e.g. general, resume assessment, job posting creation) to route to appropriate prompt templates and RAG flows
+- **Configurable prompt templates**: Per-application system prompts and intent-specific prompts to improve response quality across all models
 
 ---
 
@@ -172,9 +174,9 @@ sequenceDiagram
 1. User sends message with `workspaceId` in Add Data / semantic search or chat
 2. api-handler routes to `performSemanticSearch` / RAG-related handlers
 3. `genai_core` layer queries workspaces, documents, Aurora/OpenSearch/Kendra
-4. For chat+RAG: LangChain request-handler invokes `resolve_context_for_prompt` (RAG + connectors), then LLM with augmented context
+4. For chat+RAG: LangChain request-handler classifies **intent** (general, qa_mode, resume_assessment, job_posting_creation), resolves the appropriate **prompt template** (IntentPrompts → STAFFING_PROMPTS → application system prompts), invokes RAG retrieval (WorkspaceRetriever), then LLM with augmented context
 
-**Files:** `lib/chatbot-api/functions/api-handler/routes/semantic_search.py`, `lib/chatbot-api/functions/api-handler/routes/rag.py`, `lib/model-interfaces/langchain/functions/request-handler/index.py`
+**Files:** `lib/chatbot-api/functions/api-handler/routes/semantic_search.py`, `lib/chatbot-api/functions/api-handler/routes/rag.py`, `lib/model-interfaces/langchain/functions/request-handler/index.py`, `lib/model-interfaces/langchain/functions/request-handler/utils/intent/`, `lib/model-interfaces/langchain/functions/request-handler/utils/prompt_resolver/`
 
 ### Connector Flow
 
@@ -185,6 +187,16 @@ sequenceDiagram
 
 **Files:** `lib/chatbot-api/functions/api-handler/routes/connectors.py`, `lib/shared/layers/python-sdk/python/genai_core/connectors/`
 
+### Intent Detection and Prompt Resolution Flow
+
+1. User sends a chat message via an application (optionally with workspace/RAG)
+2. LangChain request-handler runs **intent detection** (rule-based or LLM-based when `INTENT_CLASSIFIER_ENABLED=true`)
+3. Supported intents: `general`, `qa_mode`, `resume_assessment`, `job_posting_creation`
+4. **Prompt resolution** (in order): Application `intentPrompts` (JSON) → built-in `STAFFING_PROMPTS` → application system prompts (System Prompt, System Prompt with workspace, Condense System Prompt)
+5. RAG retrieval uses the workspace when applicable; the resolved prompt template is applied to the LLM for higher-quality, context-aware responses across Bedrock, SageMaker, and Nexus models
+
+**Files:** `lib/model-interfaces/langchain/functions/request-handler/utils/intent/`, `lib/model-interfaces/langchain/functions/request-handler/utils/prompt_resolver/`, `lib/model-interfaces/langchain/functions/request-handler/adapters/shared/prompts/staffing_prompts.py`
+
 ---
 
 ## Data Model (Key Entities)
@@ -192,7 +204,7 @@ sequenceDiagram
 | Entity | Storage | Key Schema | Created/Updated By |
 |--------|---------|------------|--------------------|
 | **Session** | DynamoDB (`sessionsTable`) | PK: `SessionId`, SK: `UserId`; GSI: `byUserId` | sendQuery flow (new session on first message); api-handler `deleteSession` |
-| **Application** | DynamoDB (`applicationTable`) | PK: `Id` | api-handler `createApplication`, `updateApplication`, `deleteApplication` |
+| **Application** | DynamoDB (`applicationTable`) | PK: `Id`; includes `systemPrompt`, `systemPromptRag`, `condenseSystemPrompt`, `intentPrompts` (JSON) | api-handler `createApplication`, `updateApplication`, `deleteApplication`; LangChain uses for intent-based prompt resolution |
 | **Workspace** | DynamoDB (`workspacesTable`) | PK: `workspace_id`, SK: `object_type`; GSI: `by_object_type_idx` | api-handler workspace mutations; Step Functions (Aurora/OpenSearch/Kendra create) |
 | **Document** | DynamoDB (`documentsTable`) | PK: `workspace_id`, SK: `document_id`; GSI: `by_compound_key_idx`, `by_status_idx` | File/website/RSS/connector import workflows; api-handler `addTextDocument`, `addWebsite`, etc. |
 | **Connector** | DynamoDB (`connectorsTable`) | PK: `connector_id`, SK: `workspace_id`; GSI: `by_workspace` | api-handler `createConnector`, `updateConnector`, `deleteConnector` |
@@ -222,6 +234,7 @@ sequenceDiagram
 | genai_core Python layer | Shared business logic (workspaces, documents, connectors, embeddings) | Lambda layer packaging; PYTHONPATH `lib/shared/layers/python-sdk/python` |
 | Cognito + RBAC | Enterprise SSO via OIDC/SAML; groups for admin/workspace_manager/user | No built-in API-key-only auth for programmatic access; IAM mode exists for publishResponse |
 | CDK + config.json | `config.json` / `bin/config.json` drive feature flags (RAG, connectors, Bedrock, Nexus) | Config changes require re-deploy or manual SSM update |
+| Intent detection + prompt templates | Classify user queries and apply intent-specific prompts per application; improves response quality across all LLM providers | Rule-based default; LLM classifier optional (Bedrock); Application `intentPrompts` max 16 KB |
 
 ---
 

@@ -59,6 +59,10 @@ N.B: In case of no keys needs, the secret value must be an empty JSON `{}`, NOT 
 
 make sure that the environment variable matches what is expected by the framework in use, like Langchain ([see available langchain integrations](https://python.langchain.com/docs/integrations/llms/)).
 
+### OpenAI GPT model capabilities
+
+OpenAI GPT models (e.g. gpt-4, gpt-4o, gpt-3.5-turbo) support **document input** in addition to text. When creating or editing an application in the Admin UI, the "Allow Document Input" toggle is available for OpenAI GPT models, enabling users to upload documents directly in the chat interface. Document handling is implemented via the LangChain model interface and does not require additional configuration beyond selecting an OpenAI GPT model and enabling the toggle.
+
 ### Azure OpenAI integration as third party model
 
 - Open the SharedApiKeysSecretxyz in SecretManager

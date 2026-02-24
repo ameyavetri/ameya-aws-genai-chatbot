@@ -120,6 +120,15 @@ npm run cdk deploy
 
 **SeedFarmer:** `aws-genai-llm-chatbot/seedfarmer.yaml` exists; project primarily uses direct CDK deploy. TBD: module layout in `aws-genai-llm-chatbot/modules/`.
 
+### Intent Detection and Prompt Templates (Post-Deploy)
+
+- **Intent detection:** Default rule-based classifier; set `INTENT_CLASSIFIER_ENABLED=true` and `INTENT_CLASSIFIER_MODEL` on the LangChain request-handler for LLM-based classification (requires Bedrock).
+- **Prompt templates:** Configure per application in Admin UI: System Prompt, System Prompt when using workspace, Condense System Prompt, Intent Prompts (JSON). Or edit `lib/model-interfaces/langchain/functions/request-handler/adapters/shared/prompts/staffing_prompts.py` for built-in intent-specific prompts (requires redeploy).
+
+### Verifying OpenAI document input (post-deploy)
+
+After deploying changes to model metadata (e.g. OpenAI GPT document support), redeploy the stack so the api-handler Lambda picks up the updated genai_core layer. Then: Admin UI → Applications → Create/Edit Application → select an OpenAI GPT model (e.g. gpt-4, gpt-4o) and confirm the "Allow Document Input" toggle is enabled. Enabling it permits end users to upload documents in chat for that application.
+
 ---
 
 ## Deployment Architecture
@@ -173,6 +182,7 @@ npm run cdk deploy
 - **Config:** `CONFIG_PARAMETER_NAME` → SSM Parameter Store (JSON)
 - **Models:** `MODELS_PARAMETER_NAME` → SSM
 - **Secrets:** `API_KEYS_SECRETS_ARN`, `X_ORIGIN_VERIFY_SECRET_ARN` → Secrets Manager
+- **Intent classifier (optional):** `INTENT_CLASSIFIER_ENABLED` (true/false), `INTENT_CLASSIFIER_MODEL` (e.g. `anthropic.claude-3-haiku-20240307-v1:0`) — set on LangChain request-handler when using LLM-based intent detection
 
 ### Config Parameter (SSM)
 
@@ -234,7 +244,8 @@ npm run cdk deploy
 
 | Symptom | Where to Look | Likely Cause |
 |---------|---------------|--------------|
-| Chat no response / timeout | LangChain request-handler logs | LLM timeout, Bedrock/SageMaker throttling, VPC/egress |
+| Chat no response / timeout | LangChain request-handler logs | LLM timeout, Bedrock/SageMaker throttling, VPC/egress, intent/prompt resolution errors |
+| Chat rephrases question instead of answering | LangChain request-handler logs; Application config | Condense vs QA chain confusion; ensure workspace/RAG enabled for document Q&A; check `intentPrompts` / system prompts |
 | 403 on GraphQL | Cognito, WAF | User not in group; WAF rate limit (100/10min per IP) |
 | Connector test fails | api-handler logs, Connector Gateway logs | Credentials invalid, MCP unreachable, ECS task unhealthy |
 | RAG semantic search empty | api-handler, RAG workflows | Workspace not indexed; document status; Aurora/OpenSearch connectivity |

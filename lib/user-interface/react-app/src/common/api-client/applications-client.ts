@@ -55,6 +55,7 @@ export class ApplicationsClient {
     systemPrompt?: string | null;
     systemPromptRag?: string | null;
     condenseSystemPrompt?: string | null;
+    intentPrompts?: string | null;
     roles: Array<string | null>;
     allowImageInput: boolean;
     allowVideoInput: boolean;
@@ -83,6 +84,7 @@ export class ApplicationsClient {
     systemPrompt?: string | null;
     systemPromptRag?: string | null;
     condenseSystemPrompt?: string | null;
+    intentPrompts?: string | null;
     roles: Array<string | null>;
     allowImageInput: boolean;
     allowVideoInput: boolean;

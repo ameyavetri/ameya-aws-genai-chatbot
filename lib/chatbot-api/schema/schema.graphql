@@ -244,6 +244,7 @@ input ManageApplicationInput {
   systemPrompt: String
   systemPromptRag: String
   condenseSystemPrompt: String
+  intentPrompts: String
   roles: [String]!
   allowImageInput: Boolean!
   allowDocumentInput: Boolean!
@@ -380,6 +381,7 @@ type Application @aws_cognito_user_pools {
   systemPrompt: String
   systemPromptRag: String
   condenseSystemPrompt: String
+  intentPrompts: String
   roles: [String]
   allowImageInput: Boolean
   allowDocumentInput: Boolean

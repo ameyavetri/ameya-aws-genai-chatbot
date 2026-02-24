@@ -93,7 +93,8 @@ Question: {{input}}"""
             )
         
         # For resume assessment with JD
-        if self.job_description and self.user_intent and self.user_intent.value == "resume_assessment":
+        intent_val = self.user_intent.value if hasattr(self.user_intent, "value") else str(self.user_intent) if self.user_intent else None
+        if self.job_description and intent_val == "resume_assessment":
             qa_full_prompt = f"""{qa_system_prompt}
 
 ## Job Description:

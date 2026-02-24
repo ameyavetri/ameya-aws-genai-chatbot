@@ -138,7 +138,7 @@ def _list_openai_models():
                     "provider": Provider.OPENAI.value,
                     "name": model.id,
                     "streaming": True,
-                    "inputModalities": [Modality.TEXT.value],
+                    "inputModalities": [Modality.TEXT.value, "DOCUMENT"],
                     "outputModalities": [Modality.TEXT.value],
                     "interface": ModelInterface.LANGCHAIN.value,
                     "ragSupported": True,

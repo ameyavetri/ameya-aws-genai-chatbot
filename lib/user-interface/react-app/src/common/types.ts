@@ -107,6 +107,7 @@ export interface ApplicationManageInput {
   systemPrompt: string;
   systemPromptRag: string;
   condenseSystemPrompt: string;
+  intentPrompts?: string | null;
   selectedRoles: readonly SelectProps.Option[];
   selectedModel: SelectProps.Option | null;
   selectedWorkspace: SelectProps.Option | null;

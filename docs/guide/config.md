@@ -96,6 +96,8 @@ To see **OpenAI models** (e.g. GPT-4) in the Chat model list and use them:
    If the secret already has other keys (e.g. `headerValue`), add `OPENAI_API_KEY` to the same JSON; do not remove existing keys.
 3. **Save** the secret. The API handler caches the secret for up to 60 seconds, so wait a minute or refresh the Chat page; OpenAI models (e.g. gpt-4, gpt-3.5-turbo) should then appear in the model dropdown.
 
+OpenAI GPT models support document input. When configuring an application with an OpenAI model, the "Allow Document Input" toggle is available so end users can upload documents in chat. See [Model requirements - OpenAI GPT model capabilities](../documentation/model-requirements.md#openai-gpt-model-capabilities) for details.
+
 If you only see Bedrock models, the most common causes are: (a) the key was added to a **different** secret, or (b) the key name is wrong (e.g. `openai_api_key` instead of `OPENAI_API_KEY`). The name must match exactly what the code expects.
 
 For more keys (e.g. Azure OpenAI, Cohere, AI21), see [Model requirements](../documentation/model-requirements.md).

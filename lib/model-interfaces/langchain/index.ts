@@ -141,6 +141,15 @@ export class LangChainInterface extends Construct {
       );
     }
 
+    // Intent classifier: LLM-based when enabled (uses Bedrock invoke)
+    requestHandler.addEnvironment("INTENT_CLASSIFIER_ENABLED", "false");
+    if (props.config.bedrock?.enabled) {
+      requestHandler.addEnvironment(
+        "INTENT_CLASSIFIER_MODEL",
+        "anthropic.claude-3-haiku-20240307-v1:0"
+      );
+    }
+
     // Add Bedrock agent environment variables if enabled
     if (props.config.bedrock?.agent?.enabled) {
       requestHandler.addEnvironment("BEDROCK_AGENT_ENABLED", "true");

@@ -76,7 +76,7 @@ class IntentDetector:
         job_description, clean_query = cls._extract_job_description(user_prompt)
         
         # Determine if RAG retrieval is needed
-        requires_rag = cls._requires_rag_retrieval(intent, job_description)
+        requires_rag = cls._requires_rag_retrieval(intent, job_description is not None)
         
         result = {
             'intent': intent,
