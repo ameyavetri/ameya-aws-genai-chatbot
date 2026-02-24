@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field
+import json
+from pydantic import BaseModel, Field, field_validator
 from common.constant import (
     ID_FIELD_VALIDATION,
     SAFE_PROMPT_STR_REGEX,
@@ -26,6 +27,18 @@ permissions = UserPermissions(router)
 name_regex = r"^[\w\s+_-]+$"
 
 
+def _validate_intent_prompts_json(v):
+    if v is None or (isinstance(v, str) and not v.strip()):
+        return None
+    try:
+        parsed = json.loads(v)
+        if not isinstance(parsed, dict):
+            raise ValueError("intentPrompts must be a JSON object")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"intentPrompts must be valid JSON: {e}")
+    return v
+
+
 class CreateApplicationRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100, pattern=name_regex)
     model: str = SAFE_SHORT_STR_VALIDATION
@@ -35,6 +48,7 @@ class CreateApplicationRequest(BaseModel):
     condenseSystemPrompt: str = Field(
         None, max_length=256, pattern=SAFE_PROMPT_STR_REGEX
     )
+    intentPrompts: str = Field(None, max_length=16384)
     roles: list[str] = [SAFE_SHORT_STR_VALIDATION]
     allowImageInput: bool
     allowVideoInput: bool
@@ -44,6 +58,11 @@ class CreateApplicationRequest(BaseModel):
     maxTokens: int = Field(ge=1, le=8192)
     temperature: Decimal = Field(ge=0, le=1)
     topP: Decimal = Field(ge=0, le=1)
+
+    @field_validator("intentPrompts")
+    @classmethod
+    def validate_intent_prompts(cls, v):
+        return _validate_intent_prompts_json(v)
 
 
 class UpdateApplicationRequest(BaseModel):
@@ -56,6 +75,7 @@ class UpdateApplicationRequest(BaseModel):
     condenseSystemPrompt: str = Field(
         None, max_length=256, pattern=SAFE_PROMPT_STR_REGEX
     )
+    intentPrompts: str = Field(None, max_length=16384)
     roles: list[str] = [SAFE_SHORT_STR_VALIDATION]
     allowImageInput: bool
     allowVideoInput: bool
@@ -65,6 +85,11 @@ class UpdateApplicationRequest(BaseModel):
     maxTokens: int = Field(ge=1, le=8192)
     temperature: Decimal = Field(ge=0, le=1)
     topP: Decimal = Field(ge=0, le=1)
+
+    @field_validator("intentPrompts")
+    @classmethod
+    def validate_intent_prompts(cls, v):
+        return _validate_intent_prompts_json(v)
 
 
 @router.resolver(field_name="listApplications")
@@ -100,7 +125,8 @@ def list_applications():
                 "outputModalities": app.get("OutputModalities"),
                 "systemPrompt": app.get("SystemPrompt"),
                 "systemPromptRag": app.get("SystemPromptRag"),
-                "condenseSstemPrompt": app.get("CondenseSystemPrompt"),
+                "condenseSystemPrompt": app.get("CondenseSystemPrompt"),
+                "intentPrompts": app.get("IntentPrompts"),
                 "roles": app.get("Roles"),
                 "allowImageInput": app.get("AllowImageInput", False),
                 "allowVideoInput": app.get("AllowVideoInput", False),
@@ -155,6 +181,7 @@ def get_application(id: str):
             "systemPrompt": app.get("SystemPrompt"),
             "systemPromptRag": app.get("SystemPromptRag"),
             "condenseSystemPrompt": app.get("CondenseSystemPrompt"),
+            "intentPrompts": app.get("IntentPrompts"),
             "roles": app.get("Roles"),
             "allowImageInput": app.get("AllowImageInput", False),
             "allowVideoInput": app.get("AllowVideoInput", False),
@@ -224,6 +251,7 @@ def update_application(input: dict):
         request.maxTokens,
         request.temperature,
         request.topP,
+        request.intentPrompts,
     )
 
     return {
@@ -234,6 +262,7 @@ def update_application(input: dict):
         "systemPrompt": application.get("SystemPrompt"),
         "systemPromptRag": application.get("SystemPromptRag"),
         "condenseSystemPrompt": application.get("CondenseSystemPrompt"),
+        "intentPrompts": application.get("IntentPrompts"),
         "roles": application.get("Roles"),
         "allowImageInput": application.get("AllowImageInput", False),
         "allowVideoInput": application.get("AllowVideoInput", False),
@@ -265,6 +294,7 @@ def _create_application(request: CreateApplicationRequest):
         request.maxTokens,
         request.temperature,
         request.topP,
+        request.intentPrompts,
     )
 
     return {
@@ -275,6 +305,7 @@ def _create_application(request: CreateApplicationRequest):
         "systemPrompt": application.get("SystemPrompt"),
         "systemPromptRag": application.get("SystemPromptRag"),
         "condenseSystemPrompt": application.get("CondenseSystemPrompt"),
+        "intentPrompts": application.get("IntentPrompts"),
         "roles": application.get("Roles"),
         "allowImageInput": application.get("AllowImageInput", False),
         "allowVideoInput": application.get("AllowVideoInput", False),

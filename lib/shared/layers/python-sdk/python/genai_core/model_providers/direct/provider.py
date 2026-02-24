@@ -14,6 +14,24 @@ from ..types import ModelProvider
 SAGEMAKER_RAG_MODELS_ENDPOINT = os.environ.get("SAGEMAKER_RAG_MODELS_ENDPOINT")
 logger = Logger()
 
+# Known embedding dimensions for vector index creation (not provided by Bedrock/OpenAI list APIs).
+# Extended as new models are released; unknown models default to 1024.
+BEDROCK_EMBEDDING_DIMENSIONS: dict[str, int] = {
+    "amazon.titan-embed-text-v1": 1536,
+    "amazon.titan-embed-text-v2:0": 256,
+    "amazon.titan-embed-image-v1": 1024,
+    "cohere.embed-english-v3": 1024,
+    "cohere.embed-multilingual-v3": 1024,
+    "cohere.embed-english-v2": 1024,
+    "cohere.embed-multilingual-v2": 1024,
+}
+OPENAI_EMBEDDING_DIMENSIONS: dict[str, int] = {
+    "text-embedding-ada-002": 1536,
+    "text-embedding-3-small": 1536,
+    "text-embedding-3-large": 3072,
+}
+DEFAULT_EMBEDDING_DIMENSIONS = 1024
+
 
 class DirectModelProvider(ModelProvider, ABC):
     """Provider that connects directly to model services"""
@@ -63,24 +81,32 @@ class DirectModelProvider(ModelProvider, ABC):
         return models
 
     def get_embedding_models(self) -> list[dict[str, Any]]:
-        config = genai_core.parameters.get_config()
-        models = config["rag"]["embeddingsModels"]
-
-        if not SAGEMAKER_RAG_MODELS_ENDPOINT:
-            models = [x for x in models if x["provider"] != "sagemaker"]
-
+        """Discover embedding models from Bedrock and OpenAI (no hardcoded list from config)."""
+        models = []
+        models.extend(_list_bedrock_embedding_models())
+        models.extend(_list_openai_embedding_models())
+        if SAGEMAKER_RAG_MODELS_ENDPOINT:
+            config = genai_core.parameters.get_config()
+            rag = config.get("rag") or {}
+            sagemaker_models = rag.get("embeddingsModels") or []
+            sagemaker_models = [
+                x for x in sagemaker_models if x.get("provider") == "sagemaker"
+            ]
+            models.extend(sagemaker_models)
+        else:
+            models = [x for x in models if x.get("provider") != "sagemaker"]
+        if models and not any(m.get("default") for m in models):
+            models[0]["default"] = True
         return models
 
     def get_embeddings_model(
         self, provider: Provider, name: str
     ) -> Optional[EmbeddingsModel]:
-        config = genai_core.parameters.get_config()
-        models = config["rag"]["embeddingsModels"]
-
-        for model in models:
-            if model["provider"] == provider and model["name"] == name:
+        """Resolve embedding model by provider+name from discovered list (Bedrock/OpenAI)."""
+        provider_str = provider.value if hasattr(provider, "value") else provider
+        for model in self.get_embedding_models():
+            if model.get("provider") == provider_str and model.get("name") == name:
                 return EmbeddingsModel(**model)
-
         return None
 
     def get_model_modalities(self, model_id: str) -> list[str]:
@@ -112,7 +138,7 @@ def _list_openai_models():
                     "provider": Provider.OPENAI.value,
                     "name": model.id,
                     "streaming": True,
-                    "inputModalities": [Modality.TEXT.value],
+                    "inputModalities": [Modality.TEXT.value, "DOCUMENT"],
                     "outputModalities": [Modality.TEXT.value],
                     "interface": ModelInterface.LANGCHAIN.value,
                     "ragSupported": True,
@@ -219,9 +245,9 @@ def _list_bedrock_models():
         if not bedrock:
             return None
 
-        response = bedrock.list_foundation_models(
-            byInferenceType=genai_core.types.InferenceType.ON_DEMAND.value,
-        )
+        # Do not filter by inference type so all models are listed (e.g. Claude 4.5,
+        # latest Sonnet/Haiku). Filtering by ON_DEMAND alone can hide newer models.
+        response = bedrock.list_foundation_models()
         bedrock_models = [
             m
             for m in response.get("modelSummaries", [])
@@ -249,6 +275,59 @@ def _list_bedrock_models():
     except Exception as e:
         logger.error(f"Error listing Bedrock models: {e}")
         return None
+
+
+def _list_bedrock_embedding_models() -> list[dict[str, Any]]:
+    """List embedding models from Bedrock via list_foundation_models(byOutputModality=EMBEDDING)."""
+    try:
+        bedrock = genai_core.clients.get_bedrock_client(service_name="bedrock")
+        if not bedrock:
+            return []
+        response = bedrock.list_foundation_models(byOutputModality="EMBEDDING")
+        summaries = response.get("modelSummaries", [])
+        models = []
+        for m in summaries:
+            if m.get("modelLifecycle", {}).get("status") != genai_core.types.ModelStatus.ACTIVE.value:
+                continue
+            model_id = m.get("modelId", "")
+            dimensions = BEDROCK_EMBEDDING_DIMENSIONS.get(
+                model_id, DEFAULT_EMBEDDING_DIMENSIONS
+            )
+            models.append({
+                "provider": Provider.BEDROCK.value,
+                "name": model_id,
+                "dimensions": dimensions,
+                "default": False,
+            })
+        return models
+    except Exception as e:
+        logger.error(f"Error listing Bedrock embedding models: {e}")
+        return []
+
+
+def _list_openai_embedding_models() -> list[dict[str, Any]]:
+    """List embedding models from OpenAI API (models that support embeddings)."""
+    try:
+        openai_client = genai_core.clients.get_openai_client()
+        if not openai_client:
+            return []
+        models = []
+        for model in openai_client.models.list():
+            if "embed" not in model.id.lower():
+                continue
+            dimensions = OPENAI_EMBEDDING_DIMENSIONS.get(
+                model.id, DEFAULT_EMBEDDING_DIMENSIONS
+            )
+            models.append({
+                "provider": Provider.OPENAI.value,
+                "name": model.id,
+                "dimensions": dimensions,
+                "default": False,
+            })
+        return models
+    except Exception as e:
+        logger.error(f"Error listing OpenAI embedding models: {e}")
+        return []
 
 
 def _list_bedrock_finetuned_models():

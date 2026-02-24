@@ -11,6 +11,7 @@ import * as aws_ecr_assets from "aws-cdk-lib/aws-ecr-assets";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as sagemaker from "aws-cdk-lib/aws-sagemaker";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import { NagSuppressions } from "cdk-nag";
 import { AURORA_DB_USERS } from "../aurora-pgvector";
 
@@ -23,6 +24,8 @@ export interface FileImportBatchJobProps {
   readonly auroraDatabase?: rds.DatabaseCluster;
   readonly sageMakerRagModelsEndpoint?: sagemaker.CfnEndpoint;
   readonly openSearchVector?: OpenSearchVector;
+  /** When set, batch job can import from connectors (Dropbox/SharePoint). */
+  readonly connectorsTable?: dynamodb.Table;
 }
 
 export class FileImportBatchJob extends Construct {
@@ -82,7 +85,10 @@ export class FileImportBatchJob extends Construct {
           API_KEYS_SECRETS_ARN: props.shared.apiKeysSecret.secretArn,
           AURORA_DB_USER: AURORA_DB_USERS.WRITE,
           AURORA_DB_HOST: props.auroraDatabase?.clusterEndpoint?.hostname ?? "",
-          AURORA_DB_PORT: props.auroraDatabase?.clusterEndpoint?.port + "",
+          AURORA_DB_PORT:
+            props.auroraDatabase?.clusterEndpoint?.port != null
+              ? String(props.auroraDatabase.clusterEndpoint.port)
+              : "5432",
           PROCESSING_BUCKET_NAME: props.processingBucket.bucketName,
           WORKSPACES_TABLE_NAME:
             props.ragDynamoDBTables.workspacesTable.tableName,
@@ -96,6 +102,11 @@ export class FileImportBatchJob extends Construct {
             props.sageMakerRagModelsEndpoint?.attrEndpointName ?? "",
           OPEN_SEARCH_COLLECTION_ENDPOINT:
             props.openSearchVector?.openSearchCollectionEndpoint ?? "",
+          ...(props.connectorsTable
+            ? {
+                CONNECTORS_TABLE_NAME: props.connectorsTable.tableName,
+              }
+            : {}),
         },
       }
     );
@@ -165,12 +176,25 @@ export class FileImportBatchJob extends Construct {
       );
     }
 
+    if (props.connectorsTable) {
+      props.connectorsTable.grantReadData(fileImportJobRole);
+      fileImportJobRole.addToPolicy(
+        new iam.PolicyStatement({
+          actions: ["secretsmanager:GetSecretValue"],
+          resources: [
+            `arn:${cdk.Aws.PARTITION}:secretsmanager:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:secret:genai-connector-*`,
+          ],
+        })
+      );
+    }
+
     if (props.config.bedrock?.enabled) {
       fileImportJobRole.addToPolicy(
         new iam.PolicyStatement({
           actions: [
             "bedrock:InvokeModel",
             "bedrock:InvokeModelWithResponseStream",
+            "bedrock:ListFoundationModels",
           ],
           resources: ["arn:aws:bedrock:*"],
         })

@@ -6,7 +6,7 @@ exports[`snapshot test 1`] = `
     "AuthenticationConstructUserPoolId1F16F432": {
       "Description": "User pool id for the chatbot application.",
       "Export": {
-        "Name": "ChatbotUserPoolId",
+        "Name": "prefixChatbotUserPoolId",
       },
       "Value": {
         "Ref": "AuthenticationConstructUserPoolFE5ABE04",
@@ -15,7 +15,7 @@ exports[`snapshot test 1`] = `
     "AuthenticationConstructUserPoolLinkD2A7A02D": {
       "Description": "Link to user pool of the chatbot application.",
       "Export": {
-        "Name": "ChatbotUserPoolLink",
+        "Name": "prefixChatbotUserPoolLink",
       },
       "Value": {
         "Fn::Join": [
@@ -40,7 +40,7 @@ exports[`snapshot test 1`] = `
     "AuthenticationConstructUserPoolWebClientId09F05333": {
       "Description": "App client id for the chatbot application.",
       "Export": {
-        "Name": "ChatbotUserPoolClientId",
+        "Name": "prefixChatbotUserPoolClientId",
       },
       "Value": {
         "Ref": "AuthenticationConstructUserPoolUserPoolClientDCD6FB5B",

@@ -24,6 +24,7 @@ interface LangChainInterfaceProps {
   readonly byUserIdIndex: string;
   readonly applicationTable: dynamodb.Table;
   readonly chatbotFilesBucket: s3.Bucket;
+  readonly webSearchHandlerArn?: string;
 }
 
 export class LangChainInterface extends Construct {
@@ -85,8 +86,19 @@ export class LangChainInterface extends Construct {
         DEFAULT_KENDRA_S3_DATA_SOURCE_BUCKET_NAME:
           props.ragEngines?.kendraRetrieval?.kendraS3DataSourceBucket
             ?.bucketName ?? "",
+        WEBSEARCH_LAMBDA_ARN: props.webSearchHandlerArn ?? "",
       },
     });
+    
+    // Allow LangChain RequestHandler to invoke WebSearch Lambda (if provided)
+    if (props.webSearchHandlerArn) {
+      requestHandler.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ["lambda:InvokeFunction"],
+          resources: [props.webSearchHandlerArn],
+        })
+      );
+    }
 
     props.chatbotFilesBucket.grantReadWrite(requestHandler);
 
@@ -126,6 +138,15 @@ export class LangChainInterface extends Construct {
       requestHandler.addEnvironment(
         "BEDROCK_GUARDRAILS_VERSION",
         props.config.bedrock.guardrails.version
+      );
+    }
+
+    // Intent classifier: LLM-based when enabled (uses Bedrock invoke)
+    requestHandler.addEnvironment("INTENT_CLASSIFIER_ENABLED", "false");
+    if (props.config.bedrock?.enabled) {
+      requestHandler.addEnvironment(
+        "INTENT_CLASSIFIER_MODEL",
+        "anthropic.claude-3-haiku-20240307-v1:0"
       );
     }
 

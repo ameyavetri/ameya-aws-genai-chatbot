@@ -8,6 +8,7 @@ import {
   execSync,
   ExecSyncOptionsWithBufferEncoding,
 } from "node:child_process";
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { Shared } from "../shared";
 import { SystemConfig } from "../shared/types";
@@ -94,7 +95,10 @@ export class UserInterface extends Construct {
       redirectSignIn = `https://${this.publishedDomain}`;
     }
 
-    const sagemakerEmbedingModels = props.config.rag.embeddingsModels.filter(
+    // Defensive: config.rag may omit embeddingsModels/crossEncoderModels (e.g. minimal config.json)
+    const ragEmbeddingsModels = props.config.rag.embeddingsModels ?? [];
+    const ragCrossEncoderModels = props.config.rag.crossEncoderModels ?? [];
+    const sagemakerEmbedingModels = ragEmbeddingsModels.filter(
       (i) => i.provider === "sagemaker"
     );
     const exportsAsset = s3deploy.Source.jsonData("aws-exports.json", {
@@ -127,15 +131,22 @@ export class UserInterface extends Construct {
               name: props.config.cognitoFederation?.customProviderName,
             }
           : undefined,
-        rag_enabled: props.config.rag.enabled,
-        cross_encoders_enabled: props.config.rag.crossEncoderModels.length > 0,
+        // Show RAG UI when rag.enabled is true or when any RAG engine is deployed
+        rag_enabled:
+          props.config.rag.enabled ||
+          props.config.rag.engines.aurora.enabled ||
+          props.config.rag.engines.opensearch.enabled ||
+          props.config.rag.engines.kendra.enabled ||
+          (props.config.rag.engines.knowledgeBase?.enabled ?? false),
+        connectors_enabled: props.config.connectors?.enabled ?? false,
+        cross_encoders_enabled: ragCrossEncoderModels.length > 0,
         sagemaker_embeddings_enabled: sagemakerEmbedingModels.length > 0,
         default_embeddings_model:
-          props.config.rag.embeddingsModels.length > 0
+          ragEmbeddingsModels.length > 0
             ? Utils.getDefaultEmbeddingsModel(props.config)
             : undefined,
         default_cross_encoder_model:
-          props.config.rag.crossEncoderModels.length > 0
+          ragCrossEncoderModels.length > 0
             ? Utils.getDefaultCrossEncoderModel(props.config)
             : undefined,
         privateWebsite: props.config.privateWebsite ? true : false,
@@ -178,6 +189,7 @@ export class UserInterface extends Construct {
         ],
         local: {
           tryBundle(outputDir: string) {
+            const isWindows = process.platform === "win32";
             try {
               const options: ExecSyncOptionsWithBufferEncoding = {
                 stdio: "inherit",
@@ -185,13 +197,21 @@ export class UserInterface extends Construct {
                   ...process.env,
                 },
               };
-
-              // Safe because the command is not user provided
-              execSync(`npm --silent --prefix "${appPath}" ci`, options); //NOSONAR Needed for the build process.
+              // Use npm install (not ci) so local bundling works when lockfile differs or on Windows
+              execSync(`npm --silent --prefix "${appPath}" install`, options); //NOSONAR
               execSync(`npm --silent --prefix "${appPath}" run build`, options); //NOSONAR
+              if (!fs.existsSync(buildPath)) {
+                throw new Error(`Build output not found at ${buildPath}`);
+              }
               Utils.copyDirRecursive(buildPath, outputDir);
             } catch (e) {
               console.error(e);
+              if (isWindows) {
+                throw new Error(
+                  "Local UI build failed. On Windows, Docker bundling is not used. " +
+                    "Ensure Node 18+ is installed, then run: cd lib/user-interface/react-app && npm install && npm run build"
+                );
+              }
               return false;
             }
 

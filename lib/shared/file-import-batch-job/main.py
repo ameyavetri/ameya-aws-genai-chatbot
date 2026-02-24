@@ -9,6 +9,8 @@ from langchain_community.document_loaders import S3FileLoader
 
 WORKSPACE_ID = os.environ.get("WORKSPACE_ID")
 DOCUMENT_ID = os.environ.get("DOCUMENT_ID")
+CONNECTOR_ID = os.environ.get("CONNECTOR_ID")
+FILE_PATH = os.environ.get("FILE_PATH")
 INPUT_BUCKET_NAME = os.environ.get("INPUT_BUCKET_NAME")
 INPUT_OBJECT_KEY = os.environ.get("INPUT_OBJECT_KEY")
 PROCESSING_BUCKET_NAME = os.environ.get("PROCESSING_BUCKET_NAME")
@@ -21,10 +23,15 @@ def main():
     print("Starting file converter batch job")
     print("Workspace ID: {}".format(WORKSPACE_ID))
     print("Document ID: {}".format(DOCUMENT_ID))
-    print("Input bucket name: {}".format(INPUT_BUCKET_NAME))
-    print("Input object key: {}".format(INPUT_OBJECT_KEY))
-    print("Output bucket name: {}".format(PROCESSING_BUCKET_NAME))
-    print("Output object key: {}".format(PROCESSING_OBJECT_KEY))
+    is_connector_import = bool(CONNECTOR_ID and FILE_PATH)
+
+    if is_connector_import:
+        print("Connector import: connector_id={}, file_path={}".format(CONNECTOR_ID, FILE_PATH))
+    else:
+        print("Input bucket name: {}".format(INPUT_BUCKET_NAME))
+        print("Input object key: {}".format(INPUT_OBJECT_KEY))
+    print("Processing bucket name: {}".format(PROCESSING_BUCKET_NAME))
+    print("Processing object key: {}".format(PROCESSING_OBJECT_KEY))
 
     workspace = genai_core.workspaces.get_workspace(WORKSPACE_ID)
     if not workspace:
@@ -37,24 +44,39 @@ def main():
         )
 
     try:
-        extension = os.path.splitext(INPUT_OBJECT_KEY)[-1].lower()
-        if extension == ".txt":
-            object = s3_client.get_object(
-                Bucket=INPUT_BUCKET_NAME, Key=INPUT_OBJECT_KEY
+        if is_connector_import:
+            from genai_core.connectors import connector_files
+            content_bytes = connector_files.fetch_file_content(
+                connector_id=CONNECTOR_ID,
+                workspace_id=WORKSPACE_ID,
+                file_path=FILE_PATH,
             )
-            content = object["Body"].read().decode("utf-8")
+            s3_client.put_object(
+                Bucket=PROCESSING_BUCKET_NAME,
+                Key=PROCESSING_OBJECT_KEY,
+                Body=content_bytes,
+            )
+            input_bucket = PROCESSING_BUCKET_NAME
+            input_key = PROCESSING_OBJECT_KEY
         else:
-            loader = S3FileLoader(INPUT_BUCKET_NAME, INPUT_OBJECT_KEY)
-            print(f"loader: {loader}")
+            input_bucket = INPUT_BUCKET_NAME
+            input_key = INPUT_OBJECT_KEY
+
+        extension = os.path.splitext(input_key)[-1].lower()
+        if extension == ".txt":
+            obj = s3_client.get_object(Bucket=input_bucket, Key=input_key)
+            content = obj["Body"].read().decode("utf-8")
+        else:
+            loader = S3FileLoader(input_bucket, input_key)
+            print("loader: {}".format(loader))
             docs = loader.load()
             content = docs[0].page_content
 
-        if (
-            INPUT_BUCKET_NAME != PROCESSING_BUCKET_NAME
-            and INPUT_OBJECT_KEY != PROCESSING_OBJECT_KEY
-        ):
+        if input_bucket != PROCESSING_BUCKET_NAME or input_key != PROCESSING_OBJECT_KEY:
             s3_client.put_object(
-                Bucket=PROCESSING_BUCKET_NAME, Key=PROCESSING_OBJECT_KEY, Body=content
+                Bucket=PROCESSING_BUCKET_NAME,
+                Key=PROCESSING_OBJECT_KEY,
+                Body=content,
             )
 
         add_chunks(workspace, document, content)

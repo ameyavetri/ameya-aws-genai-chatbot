@@ -1,9 +1,9 @@
 {
   "id": "/",
   "start_url": "/",
-  "name": "Ameya Data Solution AI Chatbot",
-  "short_name": "Ameya AI Chatbot",
-  "description": "AWS Multi LLM ChatBot Sample",
+  "name": "Learnbeyond Consulting AI",
+  "short_name": "Learnbeyond Chatbot",
+  "description": "Learnbeyond Consulting Multi LLM ChatBot",
   "theme_color": "#000000",
   "background_color": "#ffffff",
   "display": "standalone",

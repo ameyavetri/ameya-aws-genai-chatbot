@@ -6,6 +6,7 @@ import { Shared } from "../../shared";
 import { FileImportBatchJob } from "./file-import-batch-job";
 import { RagDynamoDBTables } from "../rag-dynamodb-tables";
 import { FileImportWorkflow } from "./file-import-workflow";
+import { ConnectorFileImportWorkflow } from "./connector-file-import-workflow";
 import { WebsiteCrawlingWorkflow } from "./website-crawling-workflow";
 import { RssSubscription } from "./rss-subscription";
 import { OpenSearchVector } from "../opensearch-vector";
@@ -37,6 +38,8 @@ export interface DataImportProps {
   readonly documentsTable: dynamodb.Table;
   readonly workspacesByObjectTypeIndexName: string;
   readonly documentsByCompoundKeyIndexName: string;
+  /** When set, connector file import (Dropbox/SharePoint) is enabled. */
+  readonly connectorsTable?: dynamodb.Table;
 }
 
 export class DataImport extends Construct {
@@ -44,6 +47,7 @@ export class DataImport extends Construct {
   public readonly processingBucket: s3.Bucket;
   public readonly ingestionQueue: sqs.Queue;
   public readonly fileImportWorkflow: sfn.StateMachine;
+  public readonly connectorFileImportWorkflow?: sfn.StateMachine;
   public readonly websiteCrawlingWorkflow: sfn.StateMachine;
   public readonly rssIngestorFunction: lambda.Function;
   constructor(scope: Construct, id: string, props: DataImportProps) {
@@ -169,6 +173,7 @@ export class DataImport extends Construct {
         ragDynamoDBTables: props.ragDynamoDBTables,
         sageMakerRagModelsEndpoint: props.sageMakerRagModels?.model?.endpoint,
         openSearchVector: props.openSearchVector,
+        connectorsTable: props.connectorsTable,
       }
     );
 
@@ -182,6 +187,20 @@ export class DataImport extends Construct {
         ragDynamoDBTables: props.ragDynamoDBTables,
       }
     );
+
+    let connectorFileImportWorkflow: sfn.StateMachine | undefined;
+    if (props.connectorsTable) {
+      const connectorImport = new ConnectorFileImportWorkflow(
+        this,
+        "ConnectorFileImportWorkflow",
+        {
+          config: props.config,
+          fileImportBatchJob,
+          ragDynamoDBTables: props.ragDynamoDBTables,
+        }
+      );
+      connectorFileImportWorkflow = connectorImport.stateMachine;
+    }
 
     const webCrawlerBatchJob = new WebCrawlerBatchJob(
       this,
@@ -286,6 +305,7 @@ export class DataImport extends Construct {
     this.processingBucket = processingBucket;
     this.ingestionQueue = ingestionQueue;
     this.fileImportWorkflow = fileImportWorkflow.stateMachine;
+    this.connectorFileImportWorkflow = connectorFileImportWorkflow;
     this.websiteCrawlingWorkflow = websiteCrawlingWorkflow.stateMachine;
     this.rssIngestorFunction = rssSubscription.rssIngestorFunction;
 

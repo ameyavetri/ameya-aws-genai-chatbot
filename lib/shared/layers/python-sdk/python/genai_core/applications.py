@@ -96,6 +96,7 @@ def create_application(
     maxTokens: int,
     temperature: Decimal,
     topP: Decimal,
+    intentPrompts: str | None = None,
 ):
     application_id = str(uuid.uuid4())
     timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -124,6 +125,8 @@ def create_application(
         "CreateTime": timestamp,
         "UpdateTime": timestamp,
     }
+    if intentPrompts is not None:
+        item["IntentPrompts"] = intentPrompts
 
     ddb_response = table.put_item(Item=item)
 
@@ -152,6 +155,7 @@ def update_application(
     maxTokens: int,
     temperature: Decimal,
     topP: Decimal,
+    intentPrompts: str | None = None,
 ):
     response = table.get_item(Key={"Id": id})
     if response.get("Item") is None:
@@ -168,7 +172,7 @@ def update_application(
         "Workspace": workspace,
         "SystemPrompt": systemPrompt,
         "SystemPromptRag": systemPromptRag,
-        "ConsiseSystemPrompt": condenseSystemPrompt,
+        "CondenseSystemPrompt": condenseSystemPrompt,
         "Roles": roles,
         "AllowImageInput": allowImageInput,
         "AllowVideoInput": allowVideoInput,
@@ -181,6 +185,8 @@ def update_application(
         "CreateTime": response.get("Item").get("CreateTime"),
         "UpdateTime": timestamp,
     }
+    if intentPrompts is not None:
+        item["IntentPrompts"] = intentPrompts
 
     ddb_response = table.put_item(Item=item)
 

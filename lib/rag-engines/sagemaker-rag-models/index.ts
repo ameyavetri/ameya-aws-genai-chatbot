@@ -11,16 +11,20 @@ export interface SageMakerRagModelsProps {
 }
 
 export class SageMakerRagModels extends Construct {
-  readonly model: SageMakerModel;
+  readonly model?: SageMakerModel;
 
   constructor(scope: Construct, id: string, props: SageMakerRagModelsProps) {
     super(scope, id);
 
-    const sageMakerEmbeddingsModelIds = props.config.rag.embeddingsModels
+    // Defensive: config.rag may omit embeddingsModels/crossEncoderModels (e.g. minimal config.json)
+    const embeddingsModels = props.config.rag.embeddingsModels ?? [];
+    const crossEncoderModels = props.config.rag.crossEncoderModels ?? [];
+
+    const sageMakerEmbeddingsModelIds = embeddingsModels
       .filter((c) => c.provider === "sagemaker")
       .map((c) => c.name);
 
-    const sageMakerCrossEncoderModelIds = props.config.rag.crossEncoderModels
+    const sageMakerCrossEncoderModelIds = crossEncoderModels
       .filter((c) => c.provider === "sagemaker")
       .map((c) => c.name);
 

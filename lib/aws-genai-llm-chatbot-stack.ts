@@ -15,9 +15,14 @@ import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as cr from "aws-cdk-lib/custom-resources";
 import { NagSuppressions } from "cdk-nag";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
+import { WebSearchInterface } from "./model-interfaces/websearch";
+import { ConnectorDynamoDBTables } from "./connectors/connector-dynamodb-tables";
+import { ConnectorGateway } from "./connectors/connector-gateway";
+
 
 export interface AwsGenAILLMChatbotStackProps extends cdk.StackProps {
   readonly config: SystemConfig;
@@ -45,11 +50,22 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
       shared,
     });
 
+    // Connector tables (created early so RagEngines can enable connector file import)
+    const connectorTables = props.config.connectors?.enabled
+      ? new ConnectorDynamoDBTables(this, "ConnectorDynamoDBTables", {
+          prefix: props.config.prefix,
+          kmsKey: shared.kmsKey,
+          retainOnDelete: props.config.retainOnDelete,
+          deletionProtection: props.config.ddbDeletionProtection,
+        })
+      : undefined;
+
     let ragEngines: RagEngines | undefined = undefined;
     if (props.config.rag.enabled) {
       ragEngines = new RagEngines(this, "RagEngines", {
         shared,
         config: props.config,
+        connectorsTable: connectorTables?.connectorsTable,
       });
     }
 
@@ -104,6 +120,32 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
           },
         })
       );
+      const webSearch = new WebSearchInterface(this, "WebSearch", {
+        shared,
+      });
+      chatBotApi.messagesTopic.addSubscription(
+        new subscriptions.SqsSubscription(webSearch.ingestionQueue, {
+          filterPolicyWithMessageBody: {
+            direction: sns.FilterOrPolicy.filter(
+              sns.SubscriptionFilter.stringFilter({ allowlist: [Direction.In] })
+            ),
+            sourceMode: sns.FilterOrPolicy.filter(
+              sns.SubscriptionFilter.stringFilter({ allowlist: ["web", "hybrid"] })
+            ),
+            modelInterface: sns.FilterOrPolicy.filter(
+              sns.SubscriptionFilter.stringFilter({ allowlist: ["websearch"] })
+            ),
+          },
+        })
+      );            
+      
+      webSearch.webSearchLambda.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: ["secretsmanager:GetSecretValue"],
+          resources: ["*"],
+        })
+      );      
+      
 
       for (const model of models.models) {
         if (model.interface === ModelInterface.LangChain) {
@@ -202,6 +244,80 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
       chatbotFilesBucket: chatBotApi.filesBucket,
       uploadBucket: ragEngines?.uploadBucket,
     });
+
+    // Connector Infrastructure (conditional) — connectorTables created above
+    if (props.config.connectors?.enabled && connectorTables) {
+      // Connector Gateway (ECS Fargate + ALB) only when at least one connector type is enabled.
+      // An ALB listener requires at least one target group; with zero services we would create an invalid listener.
+      const anyConnectorTypeEnabled =
+        props.config.connectors?.azureSql?.enabled ||
+        props.config.connectors?.sharepoint?.enabled ||
+        props.config.connectors?.dropbox?.enabled;
+
+      if (anyConnectorTypeEnabled) {
+        const connectorVpc = shared.vpc;
+        new ConnectorGateway(this, "ConnectorGateway", {
+          vpc: connectorVpc,
+          prefix: props.config.prefix,
+          azureSqlEnabled: props.config.connectors?.azureSql?.enabled,
+          sharepointEnabled: props.config.connectors?.sharepoint?.enabled,
+          dropboxEnabled: props.config.connectors?.dropbox?.enabled,
+        });
+      }
+
+      // Grant api-handler Lambda access to connectors table
+      const apiHandler = chatBotApi.resolvers[0];
+      if (apiHandler) {
+        connectorTables.connectorsTable.grantReadWriteData(apiHandler);
+
+        // Set environment variable for connectors table name
+        apiHandler.addEnvironment(
+          "CONNECTORS_TABLE_NAME",
+          connectorTables.connectorsTable.tableName
+        );
+
+        // Grant api-handler permission for connector credentials (Part 7.2)
+        // DescribeSecret: validate ARNs; CreateSecret/PutSecretValue/DeleteSecret: create/update/delete connector secrets
+        apiHandler.addToRolePolicy(
+          new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: [
+              "secretsmanager:DescribeSecret",
+              "secretsmanager:GetResourcePolicy",
+              "secretsmanager:CreateSecret",
+              "secretsmanager:PutSecretValue",
+              "secretsmanager:DeleteSecret",
+            ],
+            resources: ["*"],
+          })
+        );
+        // GetSecretValue on connector secrets only: required for list_folder / fetch file in Add Data (Dropbox/SharePoint)
+        apiHandler.addToRolePolicy(
+          new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: ["secretsmanager:GetSecretValue"],
+            resources: [
+              `arn:${cdk.Aws.PARTITION}:secretsmanager:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:secret:genai-connector-*`,
+            ],
+          })
+        );
+
+        if (ragEngines?.connectorFileImportWorkflow) {
+          ragEngines.connectorFileImportWorkflow.grantStartExecution(apiHandler);
+        }
+      }
+
+      // Wire request-handler (LangChain Lambda) to connectors table so chat flow can use connector context
+      if (langchainInterface) {
+        connectorTables.connectorsTable.grantReadData(
+          langchainInterface.requestHandler
+        );
+        langchainInterface.requestHandler.addEnvironment(
+          "CONNECTORS_TABLE_NAME",
+          connectorTables.connectorsTable.tableName
+        );
+      }
+    }
 
     if (props.config.cognitoFederation?.enabled) {
       const oAuthParams = {

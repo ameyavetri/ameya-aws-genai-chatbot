@@ -43,8 +43,8 @@ These keys will be injected at runtime into the Lambda function Environment Vari
 
 For example, if you wish to be able to interact with AI21 Labs., OpenAI's and Cohere endpoints:
 
-- Open the [Model Interface Keys Secret](https://github.com/aws-samples/aws-genai-llm-chatbot/blob/main/lib/model-interfaces/langchain/index.ts#L38) in Secrets Manager. You can find the secret name in the stack output, too.
-- Update the Secrets by adding a key to the JSON
+- Open the **API Keys secret created by your stack** in Secrets Manager (do not use a different secret). The secret name is in the stack output (e.g. `ChatbotApiKeysSecretName` or `<prefix>ApiKeysSecretName`).
+- Update the secret value to be a JSON object and add the key to the JSON. The key name must be exactly `OPENAI_API_KEY` (all caps) for OpenAI models to appear in the Chat.
 
 ```json
 {
@@ -58,6 +58,10 @@ For example, if you wish to be able to interact with AI21 Labs., OpenAI's and Co
 N.B: In case of no keys needs, the secret value must be an empty JSON `{}`, NOT an empty string `''`.
 
 make sure that the environment variable matches what is expected by the framework in use, like Langchain ([see available langchain integrations](https://python.langchain.com/docs/integrations/llms/)).
+
+### OpenAI GPT model capabilities
+
+OpenAI GPT models (e.g. gpt-4, gpt-4o, gpt-3.5-turbo) support **document input** in addition to text. When creating or editing an application in the Admin UI, the "Allow Document Input" toggle is available for OpenAI GPT models, enabling users to upload documents directly in the chat interface. Document handling is implemented via the LangChain model interface and does not require additional configuration beyond selecting an OpenAI GPT model and enabling the toggle.
 
 ### Azure OpenAI integration as third party model
 

@@ -119,10 +119,12 @@ def handler(event, context: LambdaContext):
             "timestamp": str(int(round(datetime.now().timestamp()))),
             "userId": event["identity"]["sub"],
             "userGroups": user_roles,
+            "applicationId": application_id,
             "systemPrompts": system_prompts,
             "data": {
                 "mode": request["data"]["mode"] or "chain",
                 "text": request["data"]["text"],
+                "applicationId": application_id,
                 "images": request["data"]["images"] if allow_images else [],
                 "videos": request["data"]["videos"] if allow_videos else [],
                 "documents": request["data"]["documents"] if allow_documents else [],

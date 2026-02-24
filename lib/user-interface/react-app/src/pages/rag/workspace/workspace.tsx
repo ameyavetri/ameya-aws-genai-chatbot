@@ -139,6 +139,15 @@ export default function WorkspacePane() {
                           text: "Add RSS subscription",
                           href: `/rag/workspaces/add-data?tab=rssfeed&workspaceId=${workspaceId}`,
                         },
+                        ...(appContext?.config?.connectors_enabled
+                          ? [
+                              {
+                                id: "add-connector-files",
+                                text: "From Dropbox or SharePoint",
+                                href: `/rag/workspaces/add-data?tab=connector&workspaceId=${workspaceId}`,
+                              },
+                            ]
+                          : []),
                       ]}
                     >
                       Add data

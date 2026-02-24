@@ -169,6 +169,7 @@ export class WebCrawlerBatchJob extends Construct {
           actions: [
             "bedrock:InvokeModel",
             "bedrock:InvokeModelWithResponseStream",
+            "bedrock:ListFoundationModels",
           ],
           resources: ["arn:aws:bedrock:*"],
         })

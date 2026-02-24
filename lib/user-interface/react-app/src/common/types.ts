@@ -21,6 +21,7 @@ export interface AppConfig {
       responseType: string;
     };
     rag_enabled: boolean;
+    connectors_enabled?: boolean;
     cross_encoders_enabled: boolean;
     sagemaker_embeddings_enabled: boolean;
     api_endpoint: string;
@@ -106,6 +107,7 @@ export interface ApplicationManageInput {
   systemPrompt: string;
   systemPromptRag: string;
   condenseSystemPrompt: string;
+  intentPrompts?: string | null;
   selectedRoles: readonly SelectProps.Option[];
   selectedModel: SelectProps.Option | null;
   selectedWorkspace: SelectProps.Option | null;

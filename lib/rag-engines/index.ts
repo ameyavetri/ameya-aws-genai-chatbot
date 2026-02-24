@@ -15,6 +15,8 @@ import { Workspaces } from "./workspaces";
 export interface RagEnginesProps {
   readonly config: SystemConfig;
   readonly shared: Shared;
+  /** When set, connector file import (Dropbox/SharePoint) is enabled. */
+  readonly connectorsTable?: dynamodb.Table;
 }
 
 export class RagEngines extends Construct {
@@ -30,6 +32,7 @@ export class RagEngines extends Construct {
   public readonly documentsByCompountKeyIndexName: string;
   public readonly documentsByStatusIndexName: string;
   public readonly fileImportWorkflow?: sfn.StateMachine;
+  public readonly connectorFileImportWorkflow?: sfn.StateMachine;
   public readonly websiteCrawlingWorkflow?: sfn.StateMachine;
   public readonly deleteWorkspaceWorkflow: sfn.StateMachine;
   public readonly deleteDocumentWorkflow: sfn.StateMachine;
@@ -89,6 +92,7 @@ export class RagEngines extends Construct {
       documentsByCompoundKeyIndexName: tables.documentsByCompoundKeyIndexName,
       openSearchVector: openSearchVector ?? undefined,
       kendraRetrieval: kendraRetrieval ?? undefined,
+      connectorsTable: props.connectorsTable,
     });
 
     const workspaces = new Workspaces(this, "Workspaces", {
@@ -114,6 +118,7 @@ export class RagEngines extends Construct {
       tables.documentsByCompoundKeyIndexName;
     this.documentsByStatusIndexName = tables.documentsByStatusIndexName;
     this.fileImportWorkflow = dataImport.fileImportWorkflow;
+    this.connectorFileImportWorkflow = dataImport.connectorFileImportWorkflow;
     this.websiteCrawlingWorkflow = dataImport.websiteCrawlingWorkflow;
     this.deleteWorkspaceWorkflow = workspaces.deleteWorkspaceWorkflow;
     this.deleteDocumentWorkflow = workspaces.deleteDocumentWorkflow;

@@ -1,6 +1,7 @@
 import {
   ExpandableSection,
   Button,
+  Link,
   Popover,
   StatusIndicator,
   Tabs,
@@ -9,6 +10,19 @@ import {
 import { JsonView, darkStyles } from "react-json-view-lite";
 import { RagDocument } from "./types";
 import styles from "../../styles/chat.module.scss";
+
+interface ConnectorSource {
+  connector_id?: string;
+  connector_type?: string;
+  connector_name?: string;
+  citation_count?: number;
+}
+
+interface ConnectorCitation {
+  title?: string;
+  url?: string;
+  source?: string;
+}
 
 interface ChatMessageMetadataSectionProps {
   metadata: any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -129,6 +143,51 @@ export function ChatMessageMetadata({
             onChange={({ detail }) => setPromptIndex(detail.activeTabId)}
           />
         </>
+      )}
+      {((metadata?.connector_sources as ConnectorSource[] | undefined)?.length ?? 0) >
+        0 && (
+        <div style={{ marginTop: 12 }}>
+          <strong>Sources</strong>
+          <ul style={{ marginTop: 4, paddingLeft: 20 }}>
+            {(metadata?.connector_sources ?? []).map(
+              (s: ConnectorSource, i: number) => (
+                <li key={s.connector_id ?? i}>
+                  From: {s.connector_name ?? s.connector_type ?? "Connector"}
+                  {s.citation_count != null && (
+                    <span> ({s.citation_count} reference(s))</span>
+                  )}
+                </li>
+              )
+            )}
+          </ul>
+        </div>
+      )}
+      {((metadata?.connector_citations as ConnectorCitation[] | undefined)
+        ?.length ?? 0) > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <strong>References</strong>
+          <ol style={{ marginTop: 4, paddingLeft: 20 }}>
+            {(metadata?.connector_citations ?? []).map(
+              (c: ConnectorCitation, i: number) => (
+                <li key={i} style={{ marginBottom: 4 }}>
+                  {c.url ? (
+                    <Link href={c.url} external>
+                      {c.title || c.url}
+                    </Link>
+                  ) : (
+                    <span>{c.title || "Reference"}</span>
+                  )}
+                  {c.source && (
+                    <span style={{ color: "var(--color-text-body-secondary)" }}>
+                      {" "}
+                      — {c.source}
+                    </span>
+                  )}
+                </li>
+              )
+            )}
+          </ol>
+        </div>
       )}
     </ExpandableSection>
   );

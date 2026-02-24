@@ -42,5 +42,18 @@
     "crossEncoderModels": []
   },
   "cfGeoRestrictEnable": false,
-  "cfGeoRestrictList": []
+  "cfGeoRestrictList": [],
+  "connectors": {
+    "enabled": false,
+    "vpcId": "",
+    "azureSql": {
+      "enabled": false
+    },
+    "sharepoint": {
+      "enabled": false
+    },
+    "dropbox": {
+      "enabled": false
+    }
+  }
 }

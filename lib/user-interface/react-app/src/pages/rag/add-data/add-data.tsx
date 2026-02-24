@@ -26,6 +26,7 @@ import CrawlWebsite from "./crawl-website";
 import DataFileUpload from "./data-file-upload";
 import { CHATBOT_NAME } from "../../../common/constants";
 import AddRssSubscription from "./add-rss-subscription";
+import AddConnectorFiles from "./add-connector-files";
 import { Workspace } from "../../../API";
 
 export default function AddData() {
@@ -97,7 +98,10 @@ export default function AddData() {
   const workspace = workspaces.find((c) => c.id === data.workspace?.value);
   const showTabs = !workspace?.kendraIndexExternal;
   const disabledTabs =
-    workspace?.engine === "kendra" ? ["qna", "website", "rssfeed"] : [];
+    workspace?.engine === "kendra"
+      ? ["qna", "website", "rssfeed", "connector"]
+      : [];
+  const connectorsEnabled = appContext?.config?.connectors_enabled === true;
 
   return (
     <BaseAppLayout
@@ -241,6 +245,22 @@ export default function AddData() {
                       />
                     ),
                   },
+                  ...(connectorsEnabled
+                    ? [
+                        {
+                          label: "Dropbox / SharePoint",
+                          id: "connector",
+                          disabled: disabledTabs.includes("connector"),
+                          content: (
+                            <AddConnectorFiles
+                              data={data}
+                              validate={validate}
+                              selectedWorkspace={selectedWorkspace}
+                            />
+                          ),
+                        },
+                      ]
+                    : []),
                 ]}
                 activeTabId={activeTab}
                 onChange={({ detail: { activeTabId } }) => {

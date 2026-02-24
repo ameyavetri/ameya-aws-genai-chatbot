@@ -56,6 +56,7 @@ import {
   ChatBotModelInterface,
   ChatBotToken,
   ChabotOutputModality,
+  DataSourceMode,
 } from "./types";
 import { sendQuery } from "../../graphql/mutations";
 import { getSelectedModelMetadata, updateMessageHistoryRef } from "./utils";
@@ -111,6 +112,7 @@ export default function ChatInputPanel(props: ChatInputPanelProps) {
     workspacesStatus: "loading",
     applicationStatus: "loading",
   });
+  const [sourceMode, setSourceMode] = useState<DataSourceMode>(DataSourceMode.INTERNAL);
   const [configDialogVisible, setConfigDialogVisible] = useState(false);
   const [imageDialogVisible, setImageDialogVisible] = useState(false);
   const [documentDialogVisible, setDocumentDialogVisible] = useState(false);
@@ -476,6 +478,7 @@ export default function ChatInputPanel(props: ChatInputPanelProps) {
             videos: [],
             modelName,
             provider,
+            sourceMode: sourceMode,
             modelKwargs: {
               streaming: props.configuration.streaming,
               maxTokens: props.configuration.maxTokens,
@@ -1058,6 +1061,27 @@ export default function ChatInputPanel(props: ChatInputPanelProps) {
                     value: agent.agentRuntimeArn,
                   })) || []
                 }
+              />
+              <Select
+                selectedOption={{
+                  label:
+                    sourceMode === "internal"
+                      ? "Internal Knowledge"
+                      : sourceMode === "web"
+                      ? "Internet"
+                      : "Hybrid (Internal + Web)",
+                  value: sourceMode,
+                }}
+                onChange={({ detail }) =>
+                  setSourceMode(detail.selectedOption.value as DataSourceMode)
+                }
+                options={[
+                  { label: "Internal Knowledge", value: "internal" },
+                  { label: "Internet Search", value: "web" },
+                  { label: "Hybrid (Internal + Internet)", value: "hybrid" },
+                ]}
+                placeholder="Select source"
+                selectedAriaLabel="Selected source"
               />
               {appContext?.config.rag_enabled && (
                 <Select

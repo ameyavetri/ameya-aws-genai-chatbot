@@ -113,6 +113,8 @@ export class ApiResolvers extends Construct {
               ?.stateMachineArn ?? "",
           FILE_IMPORT_WORKFLOW_ARN:
             props.ragEngines?.fileImportWorkflow?.stateMachineArn ?? "",
+          CONNECTOR_FILE_IMPORT_WORKFLOW_ARN:
+            props.ragEngines?.connectorFileImportWorkflow?.stateMachineArn ?? "",
           WEBSITE_CRAWLING_WORKFLOW_ARN:
             props.ragEngines?.websiteCrawlingWorkflow?.stateMachineArn ?? "",
           OPEN_SEARCH_COLLECTION_ENDPOINT:
@@ -400,6 +402,14 @@ export class ApiResolvers extends Construct {
       readFileSync("lib/chatbot-api/schema/schema.graphql", "utf8")
     );
 
+    /**
+     * Resolver mapping (Part 3): Every Query and Mutation field in the schema
+     * gets a resolver that uses the api-handler Lambda (functionDataSource).
+     * The Lambda routes by fieldName to the correct handler (e.g. listConnectors
+     * -> routes/connectors.list_connectors, createConnector -> create_connector).
+     * Connector fields: listConnectors, getConnector, testConnector (Query);
+     * createConnector, updateConnector, deleteConnector (Mutation).
+     */
     function addResolvers(operationType: string) {
       /* eslint-disable  @typescript-eslint/no-explicit-any */
       const fieldNames = (

@@ -306,6 +306,11 @@ function getTypedEnvVar<T>(
       options.cognitoDomain = config.cognitoFederation?.cognitoDomain;
       options.cfGeoRestrictEnable = config.cfGeoRestrictEnable;
       options.cfGeoRestrictList = config.cfGeoRestrictList;
+      options.connectorsEnable = config.connectors?.enabled;
+      options.connectorsVpcId = config.connectors?.vpcId;
+      options.connectorsAzureSqlEnable = config.connectors?.azureSql?.enabled;
+      options.connectorsSharepointEnable = config.connectors?.sharepoint?.enabled;
+      options.connectorsDropboxEnable = config.connectors?.dropbox?.enabled;
     }
 
     try {
@@ -648,6 +653,43 @@ function getTypedEnvVar<T>(
               "",
               options.envPrefix
             ),
+          };
+        }
+
+        // Connectors Configuration
+        if (
+          getTypedEnvVar<boolean>("CONNECTORS_ENABLE", false, options.envPrefix)
+        ) {
+          defaultConfig.connectors = {
+            enabled: true,
+            vpcId: getTypedEnvVar<string>(
+              "CONNECTORS_VPC_ID",
+              "",
+              options.envPrefix
+            )
+              ? getTypedEnvVar<string>("CONNECTORS_VPC_ID", "", options.envPrefix)
+              : undefined,
+            azureSql: {
+              enabled: getTypedEnvVar<boolean>(
+                "CONNECTORS_AZURE_SQL_ENABLE",
+                false,
+                options.envPrefix
+              ),
+            },
+            sharepoint: {
+              enabled: getTypedEnvVar<boolean>(
+                "CONNECTORS_SHAREPOINT_ENABLE",
+                false,
+                options.envPrefix
+              ),
+            },
+            dropbox: {
+              enabled: getTypedEnvVar<boolean>(
+                "CONNECTORS_DROPBOX_ENABLE",
+                false,
+                options.envPrefix
+              ),
+            },
           };
         }
 
@@ -1868,6 +1910,19 @@ async function processCreateOptions(options: any): Promise<void> {
       : undefined,
     cfGeoRestrictEnable: advancedSettings.cfGeoRestrictEnable,
     cfGeoRestrictList: advancedSettings.cfGeoRestrictList,
+    connectors: {
+      enabled: options.connectorsEnable === true,
+      vpcId: options.connectorsVpcId ?? "",
+      azureSql: {
+        enabled: options.connectorsAzureSqlEnable === true,
+      },
+      sharepoint: {
+        enabled: options.connectorsSharepointEnable === true,
+      },
+      dropbox: {
+        enabled: options.connectorsDropboxEnable === true,
+      },
+    },
     bedrock: answers.bedrockEnable
       ? {
           enabled: answers.bedrockEnable,

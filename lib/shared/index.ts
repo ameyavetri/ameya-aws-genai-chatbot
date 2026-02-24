@@ -318,9 +318,14 @@ export class Shared extends Construct {
     this.powerToolsLayer = powerToolsLayer;
     this.commonLayer = commonLayer.layer;
 
+    // Export name must be unique per account/region. Use prefix (matches SeedFarmer ${PREFIX}ApiKeysSecretName);
+    // fallback to stack name when prefix is empty to avoid collision with other stacks.
+    const apiKeysExportName = props.config.prefix
+      ? `${props.config.prefix}ApiKeysSecretName`
+      : `${cdk.Stack.of(this).stackName}-ApiKeysSecretName`;
     new cdk.CfnOutput(this, getConstructId("ApiKeysSecretName", props.config), {
       value: apiKeysSecret.secretName,
-      exportName: getConstructId("ApiKeysSecretName", props.config),
+      exportName: apiKeysExportName,
     });
 
     /**

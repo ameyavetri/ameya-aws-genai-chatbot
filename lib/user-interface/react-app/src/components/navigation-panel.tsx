@@ -89,27 +89,25 @@ export default function NavigationPanel() {
     }
 
     if (userContext.userRoles.includes(UserRole.ADMIN)) {
+      const adminItems: SideNavigationProps.Item[] = [
+        {
+          type: "link",
+          text: "Applications",
+          href: "/admin/applications",
+        },
+      ];
+      if (appContext?.config.connectors_enabled) {
+        adminItems.push({
+          type: "link",
+          text: "Connectors",
+          href: "/admin/connectors",
+        });
+      }
       items.push({
         type: "section",
         text: "Admin",
-        items: [
-          {
-            type: "link",
-            text: "Applications",
-            href: "/admin/applications",
-          },
-        ],
+        items: adminItems,
       });
-
-      items.push(
-        { type: "divider" },
-        {
-          type: "link",
-          text: "Documentation",
-          href: "https://aws-samples.github.io/aws-genai-llm-chatbot/",
-          external: true,
-        }
-      );
     }
 
     return items;
