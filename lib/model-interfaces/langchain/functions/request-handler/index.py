@@ -106,9 +106,10 @@ def resolve_context_for_prompt(
     connector_citations: List[Dict[str, Any]] = []
     connector_sources: List[Dict[str, Any]] = []
 
-    # ---- INTERNAL RAG (hook later) ----
+    # ---- INTERNAL RAG ----
+    # When use_workspace_for_rag is True, the adapter performs RAG via WorkspaceRetriever.
+    # This block is for hybrid/connector scenarios; workspace RAG is handled by the adapter.
     if mode in ["internal", "hybrid"]:
-        # TODO (next step): call your existing RAG retriever using workspace_id.
         internal_items = []
 
     # ---- WEB SEARCH (hook later) ----
@@ -345,8 +346,9 @@ def handle_run(record):
     model_id = data["modelName"]
     mode = data["mode"]
     prompt = data["text"]
-    workspace_id = data.get("workspaceId", None)
-    source_mode = data.get("sourceMode", "internal")
+    # Treat empty string as None so RAG is not attempted with invalid workspace
+    workspace_id = data.get("workspaceId") or None
+    source_mode = data.get("sourceMode") or "internal"
     session_id = data.get("sessionId")
     images = data.get("images", [])
     documents = data.get("documents", [])
@@ -357,8 +359,9 @@ def handle_run(record):
 
     if not session_id:
         session_id = str(uuid.uuid4())
+        logger.info("No sessionId in request - generated new session", session_id=session_id)
 
-    # Get session history for context
+    # Get session history for context (DynamoDB key: SessionId + UserId)
     from genai_core.langchain import DynamoDBChatMessageHistory
 
     chat_history = DynamoDBChatMessageHistory(
@@ -367,6 +370,12 @@ def handle_run(record):
         user_id=user_id,
     )
     session_history = chat_history.messages if hasattr(chat_history, "messages") else []
+    logger.info(
+        "Session history loaded",
+        session_id=session_id,
+        history_message_count=len(session_history),
+        user_id=user_id,
+    )
 
     # Fetch application for intentPrompts (reference-only)
     application = None
@@ -430,7 +439,14 @@ def handle_run(record):
         has_jd=query_analysis["has_jd"],
         requires_rag=requires_rag,
         workspace_id=workspace_id,
+        session_id=session_id,
     )
+    if workspace_id is None:
+        logger.warning(
+            "RAG workspace not configured - workspace_id is None. "
+            "To enable RAG: Edit your Application in the admin UI, select a Workspace (e.g. Resume2_workspace) "
+            "in the Workspace field, and save. Without a workspace, the chatbot cannot search documents."
+        )
 
     processed_prompt = clean_query
     

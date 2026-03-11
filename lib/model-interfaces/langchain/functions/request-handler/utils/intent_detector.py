@@ -28,10 +28,14 @@ class IntentDetector:
         ],
         UserIntent.RESUME_ASSESSMENT: [
             r"(?:assess|evaluate|review|analyze|check|match|compare).*?(?:resume|cv|candidate|profile)",
+            r"(?:search|find|look for|pull|get|fetch).*?(?:resume|cv|candidate|profile)",
+            r"(?:search|find|look for|check).*?(?:workspace|database|rag)",
+            r"(?:workspace|database).*?(?:resume|cv|candidate|profile)",
             r"(?:should i|can i|ready to).*?submit.*?(?:candidate|profile|resume)",
             r"(?:match|fit|suitable).*?(?:for|against|with).*?(?:job|position|role|jd)",
             r"(?:candidate|resume|profile).*?(?:match|suitable|qualified)",
             r"screen.*?(?:resume|candidate|profile)",
+            r"(?:can you|please|now).*?(?:check|verify|search|find).*?(?:resume|workspace|candidate)",
         ],
         UserIntent.QA_MODE: [
             r"^(?:what|why|how|when|where|who|which|can you|could you|please|tell me)",
@@ -212,12 +216,17 @@ class IntentDetector:
         """Infer intent from conversation history"""
         if not session_history or len(session_history) < 2:
             return None
-        
-        recent_text = ' '.join(str(msg) for msg in session_history[-3:]).lower()
-        
-        if 'resume' in recent_text or 'candidate' in recent_text:
+
+        recent_text = " ".join(str(msg) for msg in session_history[-5:]).lower()
+
+        if (
+            "resume" in recent_text
+            or "candidate" in recent_text
+            or ("workspace" in recent_text and "checklist" in recent_text)
+            or ("checklist" in recent_text and "match" in recent_text)
+        ):
             return UserIntent.RESUME_ASSESSMENT
-        elif 'job description' in recent_text or 'posting' in recent_text:
+        elif "job description" in recent_text or "posting" in recent_text:
             return UserIntent.JOB_POSTING_CREATION
-        
+
         return None

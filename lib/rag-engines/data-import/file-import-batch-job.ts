@@ -194,9 +194,14 @@ export class FileImportBatchJob extends Construct {
           actions: [
             "bedrock:InvokeModel",
             "bedrock:InvokeModelWithResponseStream",
-            "bedrock:ListFoundationModels",
           ],
           resources: ["arn:aws:bedrock:*"],
+        })
+      );
+      fileImportJobRole.addToPolicy(
+        new iam.PolicyStatement({
+          actions: ["bedrock:ListFoundationModels"],
+          resources: ["*"],
         })
       );
 

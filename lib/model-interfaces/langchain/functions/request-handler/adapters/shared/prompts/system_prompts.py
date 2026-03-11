@@ -24,9 +24,12 @@ prompts = {
     "en": {
         # Prompt for answering questions using provided context
         "qa_prompt": (
-            "Use the following pieces of context to answer the question at the end. "
-            "If you don't know the answer, just say that you don't know, don't try "
-            "to make up an answer."
+            "Use ONLY the following pieces of context to answer the question. "
+            "If the context is empty or no documents were retrieved, say: "
+            "'No matching documents were found in the workspace.' "
+            "Never invent, assume, or fabricate candidate names, resume content, "
+            "scores, or any data not explicitly present in the context. "
+            "If you don't know the answer from the context, say so."
         ),
         # Prompt for conversational interaction between a human and AI
         "conversation_prompt": (
@@ -36,8 +39,11 @@ prompts = {
         ),
         # Prompt for rephrasing a follow-up question to be a standalone question
         "condense_question_prompt": (
-            "Given the following conversation and a follow up"
-            " question, rephrase the follow up question to be a standalone question."
+            "Given the following conversation and a follow-up question, rephrase the "
+            "follow-up into a standalone search query that includes ALL relevant "
+            "context from the conversation (e.g. job requirements, checklist items, "
+            "criteria, skills). The standalone question must be complete enough "
+            "to retrieve the right documents without seeing the prior messages."
         ),
         "current_conversation_word": "Current conversation",
         "question_word": "Question",

@@ -69,6 +69,12 @@ Provide the structured analysis as outlined."""
         
         # Use Case 2: Resume Assessment
         "resume_assessment": {
+            "system_prompt_rag": (
+                "Use ONLY the retrieved resume/candidate documents to assess against the job requirements. "
+                "If NO documents were retrieved (context is empty), say: 'No candidate resumes were found in the workspace.' "
+                "Never invent candidate names (e.g. 'Candidate A'), scores, or resume content. "
+                "Only assess resumes that are explicitly present in the retrieved context."
+            ),
             "system_prompt": """You are an expert IT recruitment specialist and resume evaluator. Your role is to assess candidate profiles against job requirements and provide detailed matching analysis for submission decisions.
 
 When evaluating candidates, provide this structured assessment:

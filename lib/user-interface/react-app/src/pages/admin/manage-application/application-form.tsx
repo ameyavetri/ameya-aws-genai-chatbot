@@ -206,7 +206,11 @@ export default function ApplicationForm(props: ApplicationFormProps) {
             </FormField>
 
             {appContext?.config.rag_enabled && (
-              <FormField label="Workspace" errorText={props.errors.workspace}>
+              <FormField
+                label="Workspace"
+                description="Required for RAG: document search, resume matching, and Q&A. Select a workspace (e.g. Resume2_workspace) that contains your ingested documents. Without a workspace, the chatbot cannot search your data."
+                errorText={props.errors.workspace}
+              >
                 <Select
                   disabled={!selectedModelMetadata?.ragSupported}
                   loadingText="Loading workspaces (might take few seconds)..."

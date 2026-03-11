@@ -11,7 +11,6 @@ import * as path from "path";
 export interface ConnectorGatewayProps {
   readonly vpc: ec2.Vpc;
   readonly prefix: string;
-  readonly azureSqlEnabled?: boolean;
   readonly sharepointEnabled?: boolean;
   readonly dropboxEnabled?: boolean;
 }
@@ -98,17 +97,6 @@ export class ConnectorGateway extends Construct {
     // Create ECS services for each enabled connector type
     // Note: Container images will be implemented in Phase 6
     // For now, we create the infrastructure structure
-
-    if (props.azureSqlEnabled) {
-      this.createConnectorService(
-        cluster,
-        listener,
-        taskSecurityGroup,
-        "azure-sql",
-        "/azure-sql",
-        props.prefix
-      );
-    }
 
     if (props.sharepointEnabled) {
       this.createConnectorService(
@@ -208,17 +196,7 @@ export class ConnectorGateway extends Construct {
 
     // Build Docker image per connector type
     let containerImage: ecs.ContainerImage;
-    if (connectorType === "azure-sql") {
-      const dockerImage = new ecr_assets.DockerImageAsset(
-        this,
-        `${connectorType}DockerImage`,
-        {
-          directory: path.join(__dirname, "..", "azure-sql-mcp-server"),
-          platform: ecr_assets.Platform.LINUX_AMD64,
-        }
-      );
-      containerImage = ecs.ContainerImage.fromDockerImageAsset(dockerImage);
-    } else if (connectorType === "dropbox") {
+    if (connectorType === "dropbox") {
       const dockerImage = new ecr_assets.DockerImageAsset(
         this,
         `${connectorType}DockerImage`,
@@ -315,7 +293,6 @@ export class ConnectorGateway extends Construct {
   private getPriorityForConnector(connectorType: string): number {
     // Assign priorities to avoid conflicts
     const priorities: Record<string, number> = {
-      "azure-sql": 100,
       sharepoint: 200,
       dropbox: 300,
     };

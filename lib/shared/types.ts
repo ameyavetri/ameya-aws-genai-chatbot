@@ -137,9 +137,6 @@ export interface SystemConfig {
   connectors?: {
     enabled?: boolean;
     vpcId?: string;
-    azureSql?: {
-      enabled?: boolean;
-    };
     sharepoint?: {
       enabled?: boolean;
     };

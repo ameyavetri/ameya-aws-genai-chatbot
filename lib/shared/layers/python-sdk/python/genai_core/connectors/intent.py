@@ -20,21 +20,7 @@ def classify_intent(
     intent = "generic_query"
     params: Dict[str, Any] = {}
 
-    if connector_type == "azure_sql":
-        if "customer" in prompt:
-            intent = "query_customers"
-        elif "order" in prompt:
-            intent = "query_orders"
-        else:
-            intent = "query_sql"
-
-        # Very small heuristic to guess time-based filters
-        if "last month" in prompt:
-            params["timeframe"] = "last_month"
-        if "last year" in prompt:
-            params["timeframe"] = "last_year"
-
-    elif connector_type in {"sharepoint", "dropbox"}:
+    if connector_type in {"sharepoint", "dropbox"}:
         intent = "search_documents"
         params["query"] = user_prompt
 

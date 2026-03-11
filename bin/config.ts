@@ -5,7 +5,6 @@ import { existsSync, readFileSync } from "fs";
 const DEFAULT_CONNECTORS: NonNullable<SystemConfig["connectors"]> = {
   enabled: false,
   vpcId: "",
-  azureSql: { enabled: false },
   sharepoint: { enabled: false },
   dropbox: { enabled: false },
 };
@@ -19,7 +18,6 @@ function normalizeConnectors(
   return {
     enabled: c.enabled === true,
     vpcId: c.vpcId ?? "",
-    azureSql: { enabled: c.azureSql?.enabled === true },
     sharepoint: { enabled: c.sharepoint?.enabled === true },
     dropbox: { enabled: c.dropbox?.enabled === true },
   };
@@ -132,7 +130,6 @@ export function getConfig(): SystemConfig {
     connectors: {
       enabled: false,
       vpcId: "",
-      azureSql: { enabled: false },
       sharepoint: { enabled: false },
       dropbox: { enabled: false },
     },

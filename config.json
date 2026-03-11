@@ -12,10 +12,10 @@
     "enabled": true,
     "engines": {
       "aurora": {
-        "enabled": false
+        "enabled": true
       },
       "opensearch": {
-        "enabled": true
+        "enabled": false
       },
       "kendra": {
         "enabled": false
@@ -28,9 +28,6 @@
   "connectors": {
     "enabled": true,
     "vpcId": "",
-    "azureSql": {
-      "enabled": true
-    },
     "sharepoint": {
       "enabled": false
     },

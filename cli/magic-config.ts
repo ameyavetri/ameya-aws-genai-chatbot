@@ -308,7 +308,6 @@ function getTypedEnvVar<T>(
       options.cfGeoRestrictList = config.cfGeoRestrictList;
       options.connectorsEnable = config.connectors?.enabled;
       options.connectorsVpcId = config.connectors?.vpcId;
-      options.connectorsAzureSqlEnable = config.connectors?.azureSql?.enabled;
       options.connectorsSharepointEnable = config.connectors?.sharepoint?.enabled;
       options.connectorsDropboxEnable = config.connectors?.dropbox?.enabled;
     }
@@ -669,13 +668,6 @@ function getTypedEnvVar<T>(
             )
               ? getTypedEnvVar<string>("CONNECTORS_VPC_ID", "", options.envPrefix)
               : undefined,
-            azureSql: {
-              enabled: getTypedEnvVar<boolean>(
-                "CONNECTORS_AZURE_SQL_ENABLE",
-                false,
-                options.envPrefix
-              ),
-            },
             sharepoint: {
               enabled: getTypedEnvVar<boolean>(
                 "CONNECTORS_SHAREPOINT_ENABLE",
@@ -1913,9 +1905,6 @@ async function processCreateOptions(options: any): Promise<void> {
     connectors: {
       enabled: options.connectorsEnable === true,
       vpcId: options.connectorsVpcId ?? "",
-      azureSql: {
-        enabled: options.connectorsAzureSqlEnable === true,
-      },
       sharepoint: {
         enabled: options.connectorsSharepointEnable === true,
       },

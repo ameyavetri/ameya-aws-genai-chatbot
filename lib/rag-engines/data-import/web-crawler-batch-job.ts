@@ -169,9 +169,14 @@ export class WebCrawlerBatchJob extends Construct {
           actions: [
             "bedrock:InvokeModel",
             "bedrock:InvokeModelWithResponseStream",
-            "bedrock:ListFoundationModels",
           ],
           resources: ["arn:aws:bedrock:*"],
+        })
+      );
+      webCrawlerJobRole.addToPolicy(
+        new iam.PolicyStatement({
+          actions: ["bedrock:ListFoundationModels"],
+          resources: ["*"],
         })
       );
 

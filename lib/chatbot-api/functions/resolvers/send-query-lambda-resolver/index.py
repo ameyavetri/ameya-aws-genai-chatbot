@@ -51,6 +51,7 @@ class DataFieldValidation(BaseModel):
     provider: Optional[str] = SAFE_SHORT_STR_VALIDATION_OPTIONAL
     sessionId: Optional[str] = SAFE_SHORT_STR_VALIDATION_OPTIONAL
     workspaceId: Optional[str] = SAFE_SHORT_STR_VALIDATION_OPTIONAL
+    sourceMode: Optional[str] = SAFE_SHORT_STR_VALIDATION_OPTIONAL
     mode: Optional[str] = SAFE_SHORT_STR_VALIDATION_OPTIONAL
     text: Optional[str] = Field(
         min_length=1, max_length=MAX_STR_INPUT_LENGTH, default=None
@@ -132,6 +133,7 @@ def handler(event, context: LambdaContext):
                 "provider": provider,
                 "sessionId": request["data"]["sessionId"],
                 "workspaceId": workspaceId,
+                "sourceMode": "internal",
                 "modelKwargs": modelKwargs,
             },
         }

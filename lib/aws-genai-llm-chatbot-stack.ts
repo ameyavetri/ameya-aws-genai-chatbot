@@ -250,7 +250,6 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
       // Connector Gateway (ECS Fargate + ALB) only when at least one connector type is enabled.
       // An ALB listener requires at least one target group; with zero services we would create an invalid listener.
       const anyConnectorTypeEnabled =
-        props.config.connectors?.azureSql?.enabled ||
         props.config.connectors?.sharepoint?.enabled ||
         props.config.connectors?.dropbox?.enabled;
 
@@ -259,7 +258,6 @@ export class AwsGenAILLMChatbotStack extends cdk.Stack {
         new ConnectorGateway(this, "ConnectorGateway", {
           vpc: connectorVpc,
           prefix: props.config.prefix,
-          azureSqlEnabled: props.config.connectors?.azureSql?.enabled,
           sharepointEnabled: props.config.connectors?.sharepoint?.enabled,
           dropboxEnabled: props.config.connectors?.dropbox?.enabled,
         });

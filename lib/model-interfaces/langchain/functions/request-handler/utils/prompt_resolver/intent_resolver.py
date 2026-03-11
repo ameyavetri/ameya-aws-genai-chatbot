@@ -51,10 +51,15 @@ class IntentPromptResolver:
             system_prompt = intent_staffing.get("system_prompt")
             if system_prompt:
                 logger.info("Using STAFFING_PROMPTS for intent", intent=detected_intent)
+                # Use staffing-specific system_prompt_rag (e.g. resume_assessment) if set
+                system_prompt_rag = (
+                    intent_staffing.get("system_prompt_rag")
+                    or self.system_prompts.get("systemPromptRag")
+                )
                 return {
                     "systemPrompt": system_prompt,
                     "condenseSystemPrompt": self.system_prompts.get("condenseSystemPrompt"),
-                    "systemPromptRag": self.system_prompts.get("systemPromptRag"),
+                    "systemPromptRag": system_prompt_rag,
                 }
 
         # 3. Fall back to record system_prompts or system_prompts defaults

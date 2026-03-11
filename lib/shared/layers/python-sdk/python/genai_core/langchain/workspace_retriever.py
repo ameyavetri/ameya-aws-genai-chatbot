@@ -17,14 +17,23 @@ class WorkspaceRetriever(BaseRetriever):
     def _get_relevant_documents(
         self, query: str, *, run_manager: CallbackManagerForRetrieverRun
     ) -> List[Document]:
-        logger.debug("SearchRequest", query=query)
+        logger.info(
+            "RAG search request",
+            workspace_id=self.workspace_id,
+            query_length=len(query) if query else 0,
+        )
         result = genai_core.semantic_search.semantic_search(
-            self.workspace_id, query, limit=3, full_response=False
+            self.workspace_id, query, limit=10, full_response=False
         )
 
-        self.documents_found = [
-            self._get_document(item) for item in result.get("items", [])
-        ]
+        items = result.get("items", [])
+        self.documents_found = [self._get_document(item) for item in items]
+        logger.info(
+            "RAG search complete",
+            workspace_id=self.workspace_id,
+            documents_retrieved=len(self.documents_found),
+            query_preview=query[:100] + "..." if query and len(query) > 100 else query,
+        )
         return self.documents_found
 
     def _get_document(self, item):
